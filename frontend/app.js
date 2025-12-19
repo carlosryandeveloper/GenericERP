@@ -1,4 +1,3 @@
-cat > frontend/app.js <<'JS'
 const byId = (id) => document.getElementById(id);
 
 const FALLBACK_LOCAL = "http://localhost:8000";
@@ -6,7 +5,7 @@ const LS_API_BASE = "genericerp.apiBase";
 
 const ROUTES = {
   config: { title: "Configuração", desc: "Defina a API Base e valide a conexão." },
-  products: { title: "Produtos", desc: "Crie produtos e consulte lista rápida." },
+  products: { title: "Produtos", desc: "Crie produtos, veja lista rápida e tabela." },
   movements: { title: "Movimentações", desc: "Lance IN/OUT/ADJUST e veja validações." },
   balance: { title: "Saldo", desc: "Saldo por produto (id, nome, unidade, saldo)." },
   statement: { title: "Extrato", desc: "Extrato do produto com saldo acumulado." },
@@ -31,9 +30,12 @@ function normalizeBase(url) {
 function setApiPill(kind, text) {
   const pill = byId("apiPill");
   const t = byId("apiPillText");
-  pill.classList.remove("ok", "err");
+  pill.classList.remove("ok", "err", "warn");
+
   if (kind === "ok") pill.classList.add("ok");
-  if (kind === "err") pill.classList.add("err");
+  else if (kind === "err") pill.classList.add("err");
+  else pill.classList.add("warn");
+
   t.textContent = text;
 }
 
@@ -47,6 +49,8 @@ function pretty(v) {
 
 function setOut(elId, value, kind = "ok") {
   const el = byId(elId);
+  if (!el) return;
+
   el.classList.remove("empty", "ok", "err");
   if (value === null || value === undefined || value === "") {
     el.textContent = "Sem dados.";
@@ -108,7 +112,6 @@ function parseNumber(v) {
 
 /* =========================================================
    ITEM 2 (ADICIONADO): helpers + renderização em tabela
-   (para substituir JSON na tela por tabelas com filtro/ordem)
    ========================================================= */
 
 const fmtDateTime = (iso) => {
@@ -143,7 +146,7 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
   const toolbar = document.createElement("div");
   toolbar.className = "table-toolbar";
   toolbar.innerHTML = `
-    <input type="text" placeholder="Filtrar..." />
+    <input class="input" type="text" placeholder="Filtrar..." />
     <div class="muted"><span class="mono">${rows.length}</span> registro(s)</div>
   `;
 
@@ -242,11 +245,8 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
         const td = document.createElement("td");
         const raw = r?.[c.key];
 
-        if (c.render) {
-          td.innerHTML = c.render(raw, r) ?? "";
-        } else {
-          td.textContent = raw == null ? "" : String(raw);
-        }
+        if (c.render) td.innerHTML = c.render(raw, r) ?? "";
+        else td.textContent = raw == null ? "" : String(raw);
 
         tr.appendChild(td);
       });
@@ -348,6 +348,50 @@ async function onProductsMin() {
   }
 }
 
+/** NOVO: tabela de produtos (id, name, unit) */
+async function onProductsTable() {
+  const mount = byId("productsTable");
+  if (!mount) return;
+
+  mount.innerHTML = `<div class="muted">Carregando tabela...</div>`;
+
+  try {
+    let rows = null;
+
+    // Tenta /products/min (ideal). Se não existir, cai pro /products.
+    try {
+      rows = await fetchJson("/products/min");
+    } catch (e) {
+      if (e?.status === 404) {
+        const all = await fetchJson("/products");
+        rows = (all || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          unit: p.unit,
+        }));
+      } else {
+        throw e;
+      }
+    }
+
+    const safeRows = Array.isArray(rows) ? rows : [];
+
+    renderTable({
+      mountEl: mount,
+      columns: [
+        { key: "id", title: "ID", render: (v) => `<span class="mono">${v ?? ""}</span>` },
+        { key: "name", title: "Nome" },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${v ?? ""}</span>` },
+      ],
+      rows: safeRows,
+      emptyText: "Sem produtos cadastrados.",
+      filterKeys: ["id", "name", "unit"],
+    });
+  } catch (e) {
+    mount.innerHTML = `<pre class="output err">${pretty({ error: e.message, data: e.data })}</pre>`;
+  }
+}
+
 async function onCreateMovement() {
   setOut("movementOut", "Lançando movimentação...", "ok");
   try {
@@ -356,10 +400,8 @@ async function onCreateMovement() {
     const quantity = parseNumber(byId("mQty").value);
     const note = (byId("mNote").value || "").trim();
 
-    if (!Number.isFinite(product_id) || product_id <= 0)
-      throw new Error("product_id inválido");
-    if (!Number.isFinite(quantity) || quantity <= 0)
-      throw new Error("quantity inválida");
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("quantity inválida");
 
     const payload = { product_id, type, quantity };
     if (note) payload.note = note;
@@ -388,8 +430,7 @@ async function onStatement() {
   setOut("statementOut", "Carregando /stock/statement...", "ok");
   try {
     const product_id = parseInt(byId("sProductId").value, 10);
-    if (!Number.isFinite(product_id) || product_id <= 0)
-      throw new Error("product_id inválido");
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
 
     const from = (byId("sFrom").value || "").trim();
     const to = (byId("sTo").value || "").trim();
@@ -426,6 +467,8 @@ function wire() {
   // pages
   byId("btnCreateProduct").addEventListener("click", onCreateProduct);
   byId("btnLoadProductsMin").addEventListener("click", onProductsMin);
+  byId("btnLoadProductsTable").addEventListener("click", onProductsTable);
+
   byId("btnCreateMovement").addEventListener("click", onCreateMovement);
   byId("btnLoadBalance").addEventListener("click", onBalance);
   byId("btnLoadStatement").addEventListener("click", onStatement);
@@ -444,4 +487,3 @@ document.addEventListener("DOMContentLoaded", () => {
   // default route
   if (!window.location.hash) window.location.hash = "#/config";
 });
-JS
