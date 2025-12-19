@@ -1,5 +1,3 @@
-// GenericERP Front (v0.1) — mais esperto para Codespaces
-
 const FALLBACK_LOCAL = "http://localhost:8000";
 
 function byId(id) { return document.getElementById(id); }
@@ -22,17 +20,13 @@ function show(elId, value, isError = false) {
 }
 
 function guessApiBase() {
-  // Se estiver em Codespaces, o host costuma ser algo como:
-  // https://<nome>-5173.app.github.dev  (front)
-  // https://<nome>-8000.app.github.dev  (backend)
-  // Então trocamos "-5173." por "-8000." (ou qualquer "-<porta>." por "-8000.")
+  // Ex.: https://<nome>-5173.app.github.dev  -> backend: https://<nome>-8000.app.github.dev
   const url = window.location.href;
 
   if (url.includes(".app.github.dev")) {
     return window.location.origin.replace(/-\d+\./, "-8000.");
   }
 
-  // Caso normal (rodando local)
   return FALLBACK_LOCAL;
 }
 

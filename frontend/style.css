@@ -2,15 +2,13 @@
   color-scheme: dark;
   --bg: #0b0f17;
   --card: rgba(255,255,255,.06);
-  --card2: rgba(255,255,255,.08);
   --text: rgba(255,255,255,.92);
   --muted: rgba(255,255,255,.68);
   --border: rgba(255,255,255,.14);
   --shadow: 0 14px 40px rgba(0,0,0,.35);
   --radius: 16px;
   --pad: 14px;
-  --primary: #7c3aed; /* roxinho “produto” */
-  --primary2: #a78bfa;
+  --primary: #7c3aed;
   --danger: #ef4444;
   --ok: #22c55e;
 }
@@ -40,9 +38,7 @@ body{
   z-index: 10;
 }
 
-.brand{
-  display:flex; gap: 12px; align-items: center;
-}
+.brand{ display:flex; gap: 12px; align-items: center; }
 .logo{
   width: 44px; height: 44px;
   display:grid; place-items:center;
@@ -52,7 +48,7 @@ body{
   box-shadow: var(--shadow);
   font-weight: 800;
 }
-h1{ margin: 0; font-size: 20px; letter-spacing: .2px; }
+h1{ margin: 0; font-size: 20px; }
 .subtitle{ margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 
 .status{
@@ -70,12 +66,7 @@ h1{ margin: 0; font-size: 20px; letter-spacing: .2px; }
 .dot.ok{ background: var(--ok); box-shadow: 0 0 0 4px rgba(34,197,94,.16); }
 .dot.err{ background: var(--danger); box-shadow: 0 0 0 4px rgba(239,68,68,.16); }
 
-.container{
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 18px 16px 40px;
-}
-
+.container{ max-width: 1100px; margin: 0 auto; padding: 18px 16px 40px; }
 .card{
   border: 1px solid var(--border);
   background: linear-gradient(180deg, var(--card), rgba(255,255,255,.03));
@@ -85,15 +76,8 @@ h1{ margin: 0; font-size: 20px; letter-spacing: .2px; }
   margin: 14px 0;
 }
 
-.card-head{
-  display:flex; flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-h2{
-  margin: 0;
-  font-size: 16px;
-}
+.card-head{ display:flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+h2{ margin: 0; font-size: 16px; }
 .muted{ color: var(--muted); font-size: 13px; margin: 0; }
 
 .field{ display:flex; flex-direction: column; gap: 6px; min-width: 180px; }
@@ -112,12 +96,7 @@ input:focus, select:focus{
   box-shadow: 0 0 0 4px rgba(167,139,250,.12);
 }
 
-.actions{
-  display:flex;
-  gap: 10px;
-  align-items: end;
-  flex-wrap: wrap;
-}
+.actions{ display:flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 
 .btn{
   border: 1px solid var(--border);
@@ -126,18 +105,11 @@ input:focus, select:focus{
   border-radius: 12px;
   padding: 10px 12px;
   cursor: pointer;
-  transition: transform .06s ease, background .2s ease, border-color .2s ease;
 }
 .btn:hover{ background: rgba(255,255,255,.09); }
-.btn:active{ transform: translateY(1px); }
-
 .btn.primary{
   border-color: rgba(124,58,237,.55);
   background: linear-gradient(135deg, rgba(124,58,237,.85), rgba(124,58,237,.55));
-}
-.btn.primary:hover{
-  border-color: rgba(167,139,250,.65);
-  background: linear-gradient(135deg, rgba(124,58,237,.92), rgba(124,58,237,.60));
 }
 
 .output{
@@ -153,21 +125,15 @@ input:focus, select:focus{
   line-height: 1.45;
   color: rgba(255,255,255,.86);
 }
-
 .output.ok{ border-color: rgba(34,197,94,.35); }
 .output.err{ border-color: rgba(239,68,68,.35); }
 
 .grid-2{ display:grid; grid-template-columns: 1fr auto; gap: 12px; }
 .grid-3{ display:grid; grid-template-columns: 1fr 2fr 1fr; gap: 12px; align-items: end; }
 .grid-4{ display:grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 12px; align-items: end; }
-
 .grow{ min-width: 260px; }
 
-.split{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
+.split{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
 .footer{
   padding: 22px 16px 30px;
@@ -176,11 +142,7 @@ input:focus, select:focus{
   border-top: 1px solid var(--border);
 }
 
-/* Responsivo */
 @media (max-width: 980px){
   .split{ grid-template-columns: 1fr; }
-  .grid-2{ grid-template-columns: 1fr; }
-  .grid-3{ grid-template-columns: 1fr; }
-  .grid-4{ grid-template-columns: 1fr; }
-  .actions{ align-items: center; }
+  .grid-2, .grid-3, .grid-4{ grid-template-columns: 1fr; }
 }
