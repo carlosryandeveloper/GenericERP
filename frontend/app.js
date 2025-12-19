@@ -1,3 +1,4 @@
+cat > frontend/app.js <<'JS'
 const byId = (id) => document.getElementById(id);
 
 const FALLBACK_LOCAL = "http://localhost:8000";
@@ -12,11 +13,8 @@ const ROUTES = {
 };
 
 function guessApiBase() {
-  // Ex.: https://<nome>-5173.app.github.dev -> https://<nome>-8000.app.github.dev
   const raw = window.location.origin;
-  if (raw.includes(".app.github.dev")) {
-    return raw.replace(/-\d+\./, "-8000.");
-  }
+  if (raw.includes(".app.github.dev")) return raw.replace(/-\d+\./, "-8000.");
   return FALLBACK_LOCAL;
 }
 
@@ -51,6 +49,26 @@ function setOut(elId, value, kind = "ok") {
   }
   el.textContent = pretty(value);
   el.classList.add(kind === "err" ? "err" : "ok");
+}
+
+function showPre(id, value, kind = "ok") {
+  const el = byId(id);
+  if (!el) return;
+  el.classList.remove("hidden");
+  setOut(id, value, kind);
+}
+
+function hidePre(id) {
+  const el = byId(id);
+  if (!el) return;
+  el.classList.add("hidden");
+  el.textContent = "";
+  el.classList.remove("empty", "ok", "err");
+}
+
+function clearMount(id) {
+  const el = byId(id);
+  if (el) el.innerHTML = "";
 }
 
 function apiBase() {
@@ -98,13 +116,14 @@ function parseNumber(v) {
 }
 
 /* =========================================================
-   ITEM 2: helpers + renderização em tabela (filtro/ordem)
+   TABELAS: helpers + renderização
    ========================================================= */
 
 const fmtDateTime = (iso) => {
   if (!iso) return "";
   try {
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" })
+      .format(new Date(iso));
   } catch {
     return String(iso);
   }
@@ -126,7 +145,7 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
   const toolbar = document.createElement("div");
   toolbar.className = "table-toolbar";
   toolbar.innerHTML = `
-    <input class="input table-filter" type="text" placeholder="Filtrar..." />
+    <input class="input" type="text" placeholder="Filtrar..." />
     <div class="muted"><span class="mono">${rows.length}</span> registro(s)</div>
   `;
 
@@ -220,10 +239,8 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
       columns.forEach((c) => {
         const td = document.createElement("td");
         const raw = r?.[c.key];
-
         if (c.render) td.innerHTML = c.render(raw, r) ?? "";
         else td.textContent = raw == null ? "" : String(raw);
-
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -233,12 +250,7 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
   paint();
 }
 
-function mountError(mountEl, e) {
-  if (!mountEl) return;
-  mountEl.innerHTML = `<pre class="output err">${pretty({ error: e.message, data: e.data })}</pre>`;
-}
-
-/* ===== fim ITEM 2 ===== */
+/* ========================================================= */
 
 function routeNameFromHash() {
   const h = (window.location.hash || "").trim();
@@ -312,53 +324,53 @@ async function onCreateProduct() {
   }
 }
 
-/** LISTA RÁPIDA (AGORA EM TABELA) */
+/* ✅ AGORA: /products/min em TABELA (sem JSON feio) */
 async function onProductsMin() {
-  const mount = byId("productsMinTable");
-  mount.innerHTML = `<div class="muted">Carregando...</div>`;
+  hidePre("productsMinOut");
+  clearMount("productsMinTable");
 
   try {
     const data = await fetchJson("/products/min");
 
     renderTable({
-      mountEl: mount,
+      mountEl: byId("productsMinTable"),
       columns: [
-        { key: "id", title: "ID", render: (v) => `<span class="mono">${v ?? ""}</span>` },
+        { key: "id", title: "ID" },
         { key: "name", title: "Nome" },
-        { key: "unit", title: "Unidade", render: (v) => `<span class="tag">${v ?? ""}</span>` },
+        { key: "unit", title: "Unidade" },
       ],
       rows: Array.isArray(data) ? data : [],
-      emptyText: "Nenhum produto encontrado.",
+      emptyText: "Nenhum produto cadastrado.",
       filterKeys: ["id", "name", "unit"],
     });
   } catch (e) {
-    mountError(mount, e);
+    showPre("productsMinOut", { error: e.message, data: e.data }, "err");
   }
 }
 
-/** TABELA COMPLETA */
+/* ✅ /products completo em tabela */
 async function onProductsTable() {
-  const mount = byId("productsTable");
-  mount.innerHTML = `<div class="muted">Carregando...</div>`;
+  hidePre("productsTableOut");
+  clearMount("productsTable");
 
   try {
     const data = await fetchJson("/products");
 
     renderTable({
-      mountEl: mount,
+      mountEl: byId("productsTable"),
       columns: [
-        { key: "id", title: "ID", render: (v) => `<span class="mono">${v ?? ""}</span>` },
-        { key: "sku", title: "SKU", render: (v) => `<span class="tag">${v ?? ""}</span>` },
+        { key: "id", title: "ID" },
+        { key: "sku", title: "SKU" },
         { key: "name", title: "Nome" },
-        { key: "unit", title: "Unidade", render: (v) => `<span class="tag">${v ?? ""}</span>` },
-        { key: "created_at", title: "Criado em", render: (v) => `<span class="mono">${fmtDateTime(v)}</span>` },
+        { key: "unit", title: "Unidade" },
+        { key: "created_at", title: "Criado em", render: (v) => fmtDateTime(v) },
       ],
       rows: Array.isArray(data) ? data : [],
-      emptyText: "Nenhum produto encontrado.",
-      filterKeys: ["id", "sku", "name", "unit", "created_at"],
+      emptyText: "Nenhum produto cadastrado.",
+      filterKeys: ["id", "sku", "name", "unit"],
     });
   } catch (e) {
-    mountError(mount, e);
+    showPre("productsTableOut", { error: e.message, data: e.data }, "err");
   }
 }
 
@@ -421,7 +433,6 @@ function wire() {
     saveApiBase(byId("apiBase").value);
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
   });
-
   byId("btnResetApi").addEventListener("click", () => {
     saveApiBase(guessApiBase());
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
@@ -432,10 +443,7 @@ function wire() {
 
   byId("btnCreateProduct").addEventListener("click", onCreateProduct);
   byId("btnLoadProductsMin").addEventListener("click", onProductsMin);
-
-  // NOVO: botão da tabela completa
-  const btnTbl = byId("btnLoadProductsTable");
-  if (btnTbl) btnTbl.addEventListener("click", onProductsTable);
+  byId("btnLoadProductsTable").addEventListener("click", onProductsTable);
 
   byId("btnCreateMovement").addEventListener("click", onCreateMovement);
   byId("btnLoadBalance").addEventListener("click", onBalance);
@@ -452,3 +460,4 @@ document.addEventListener("DOMContentLoaded", () => {
   wire();
   if (!window.location.hash) window.location.hash = "#/config";
 });
+JS
