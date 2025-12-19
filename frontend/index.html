@@ -6,71 +6,165 @@
   <title>GenericERP - Front (v0.1)</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
-  <h1>GenericERP <span class="pill">Front v0.1</span></h1>
-  <p class="sub">Base de UI pra testar: Produtos • Movimentações • Saldo • Extrato (via API).</p>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">GE</div>
+      <div>
+        <h1>GenericERP</h1>
+        <p class="subtitle">Front v0.1 • Produtos • Movimentações • Saldo • Extrato</p>
+      </div>
+    </div>
 
-  <section>
-    <h2>Config</h2>
-    <div class="row">
-      <input id="apiBase" placeholder="API Base (ex: http://localhost:8000)" />
-      <button id="btnHealth">Testar /health</button>
+    <div class="status">
+      <span class="dot" id="apiDot" title="Status da API"></span>
+      <span id="apiLabel">API: não testada</span>
     </div>
-    <div class="hint">
-      Por padrão, aponta pra <b>http://localhost:8000</b>.
-      Se você abrir este HTML direto (file://), o navegador pode bloquear requisições por CORS.
-      Soluções: habilitar CORS no backend ou servir este front por um servidor web.
-    </div>
-    <pre id="healthResult"></pre>
-  </section>
+  </header>
 
-  <section>
-    <h2>Criar Produto</h2>
-    <div class="row">
-      <input id="sku" placeholder="SKU (único) ex: P-001" />
-      <input id="name" placeholder="Nome ex: Caneta Azul" class="grow" />
-      <input id="unit" placeholder="Unidade ex: UN" />
-      <button id="btnCreateProduct">Criar</button>
-    </div>
-    <div class="hint">Se tentar SKU repetido, o backend deve responder <b>409</b> (sku already exists).</div>
-    <pre id="productResult"></pre>
-  </section>
+  <main class="container">
+    <section class="card">
+      <div class="card-head">
+        <h2>Configuração</h2>
+        <p class="muted">Dica: em Codespaces, o sistema tenta detectar o host certo automaticamente.</p>
+      </div>
 
-  <section>
-    <h2>Criar Movimentação</h2>
-    <div class="row">
-      <input id="productId" type="number" placeholder="Product ID (ex: 1)" />
-      <select id="type">
-        <option value="IN">IN (Entrada)</option>
-        <option value="OUT">OUT (Saída)</option>
-        <option value="ADJUST">ADJUST (Ajuste)</option>
-      </select>
-      <input id="qty" type="number" step="0.01" placeholder="Quantidade (ex: 10)" />
-      <input id="note" placeholder="Observação (opcional)" class="grow" />
-      <button id="btnCreateMove">Lançar</button>
-    </div>
-    <pre id="moveResult"></pre>
-  </section>
+      <div class="grid-2">
+        <label class="field">
+          <span>API Base</span>
+          <input id="apiBase" placeholder="Ex: https://seu-codespace-8000.app.github.dev" />
+        </label>
 
-  <section>
-    <h2>Saldo</h2>
-    <div class="row">
-      <button id="btnBalance">Carregar /stock/balance</button>
-    </div>
-    <pre id="balanceResult"></pre>
-  </section>
+        <div class="actions">
+          <button class="btn primary" id="btnHealth">Testar /health</button>
+          <button class="btn" id="btnRoutes">Ver rotas</button>
+        </div>
+      </div>
 
-  <section>
-    <h2>Extrato</h2>
-    <div class="row">
-      <input id="statementProductId" type="number" placeholder="Product ID (ex: 1)" />
-      <input id="fromDate" placeholder="from_date (YYYY-MM-DD)" />
-      <input id="toDate" placeholder="to_date (YYYY-MM-DD)" />
-      <button id="btnStatement">Carregar extrato</button>
+      <pre id="healthResult" class="output"></pre>
+    </section>
+
+    <div class="split">
+      <section class="card">
+        <div class="card-head">
+          <h2>Criar Produto</h2>
+          <p class="muted">SKU é único. Repetiu? Backend responde 409.</p>
+        </div>
+
+        <div class="grid-3">
+          <label class="field">
+            <span>SKU</span>
+            <input id="sku" placeholder="Ex: P-001" />
+          </label>
+
+          <label class="field grow">
+            <span>Nome</span>
+            <input id="name" placeholder="Ex: Caneta Azul" />
+          </label>
+
+          <label class="field">
+            <span>Unidade</span>
+            <input id="unit" placeholder="Ex: UN" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="btnCreateProduct">Criar produto</button>
+        </div>
+
+        <pre id="productResult" class="output"></pre>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Criar Movimentação</h2>
+          <p class="muted">Entrada (IN), Saída (OUT) e Ajuste (ADJUST).</p>
+        </div>
+
+        <div class="grid-4">
+          <label class="field">
+            <span>ID do produto</span>
+            <input id="productId" type="number" placeholder="Ex: 1" />
+          </label>
+
+          <label class="field">
+            <span>Tipo</span>
+            <select id="type">
+              <option value="IN">IN (Entrada)</option>
+              <option value="OUT">OUT (Saída)</option>
+              <option value="ADJUST">ADJUST (Ajuste)</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Quantidade</span>
+            <input id="qty" type="number" step="0.01" placeholder="Ex: 10" />
+          </label>
+
+          <label class="field grow">
+            <span>Observação</span>
+            <input id="note" placeholder="Opcional" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="btnCreateMove">Lançar</button>
+        </div>
+
+        <pre id="moveResult" class="output"></pre>
+      </section>
     </div>
-    <div class="hint">Endpoint: <code>/stock/statement?product_id=...&from_date=...&to_date=...</code></div>
-    <pre id="statementResult"></pre>
-  </section>
+
+    <div class="split">
+      <section class="card">
+        <div class="card-head">
+          <h2>Saldo</h2>
+          <p class="muted">Somatório por produto com sinal (IN/ADJUST +, OUT -).</p>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnBalance">Carregar saldo</button>
+        </div>
+
+        <pre id="balanceResult" class="output"></pre>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Extrato</h2>
+          <p class="muted">Histórico auditável com saldo acumulado por linha.</p>
+        </div>
+
+        <div class="grid-3">
+          <label class="field">
+            <span>ID do produto</span>
+            <input id="statementProductId" type="number" placeholder="Ex: 1" />
+          </label>
+
+          <label class="field">
+            <span>De</span>
+            <input id="fromDate" placeholder="YYYY-MM-DD" />
+          </label>
+
+          <label class="field">
+            <span>Até</span>
+            <input id="toDate" placeholder="YYYY-MM-DD" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnStatement">Carregar extrato</button>
+        </div>
+
+        <pre id="statementResult" class="output"></pre>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <span>GenericERP • v0.1 • UI mínima para testes</span>
+  </footer>
 
   <script src="./app.js"></script>
 </body>
