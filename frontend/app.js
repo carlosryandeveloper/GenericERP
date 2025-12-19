@@ -5,7 +5,7 @@ const LS_API_BASE = "genericerp.apiBase";
 
 const ROUTES = {
   config: { title: "Configuração", desc: "Defina a API Base e valide a conexão." },
-  products: { title: "Produtos", desc: "Crie produtos, veja lista rápida e tabela." },
+  products: { title: "Produtos", desc: "Crie produtos e consulte listas em tabela." },
   movements: { title: "Movimentações", desc: "Lance IN/OUT/ADJUST e veja validações." },
   balance: { title: "Saldo", desc: "Saldo por produto (id, nome, unidade, saldo)." },
   statement: { title: "Extrato", desc: "Extrato do produto com saldo acumulado." },
@@ -30,27 +30,19 @@ function normalizeBase(url) {
 function setApiPill(kind, text) {
   const pill = byId("apiPill");
   const t = byId("apiPillText");
-  pill.classList.remove("ok", "err", "warn");
-
+  pill.classList.remove("ok", "err");
   if (kind === "ok") pill.classList.add("ok");
-  else if (kind === "err") pill.classList.add("err");
-  else pill.classList.add("warn");
-
+  if (kind === "err") pill.classList.add("err");
   t.textContent = text;
 }
 
 function pretty(v) {
-  try {
-    return typeof v === "string" ? v : JSON.stringify(v, null, 2);
-  } catch {
-    return String(v);
-  }
+  try { return typeof v === "string" ? v : JSON.stringify(v, null, 2); }
+  catch { return String(v); }
 }
 
 function setOut(elId, value, kind = "ok") {
   const el = byId(elId);
-  if (!el) return;
-
   el.classList.remove("empty", "ok", "err");
   if (value === null || value === undefined || value === "") {
     el.textContent = "Sem dados.";
@@ -83,16 +75,11 @@ async function fetchJson(path, opts = {}) {
 
     const text = await res.text();
     let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
-    }
+    try { data = text ? JSON.parse(text) : null; }
+    catch { data = { raw: text }; }
 
     if (!res.ok) {
-      const msg = data?.detail
-        ? `${res.status} ${data.detail}`
-        : `${res.status} ${res.statusText}`;
+      const msg = data?.detail ? `${res.status} ${data.detail}` : `${res.status} ${res.statusText}`;
       const e = new Error(msg);
       e.status = res.status;
       e.data = data;
@@ -111,16 +98,13 @@ function parseNumber(v) {
 }
 
 /* =========================================================
-   ITEM 2 (ADICIONADO): helpers + renderização em tabela
+   ITEM 2: helpers + renderização em tabela (filtro/ordem)
    ========================================================= */
 
 const fmtDateTime = (iso) => {
   if (!iso) return "";
   try {
-    return new Intl.DateTimeFormat("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    }).format(new Date(iso));
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
   } catch {
     return String(iso);
   }
@@ -135,18 +119,14 @@ const fmtNumber = (n) => {
 function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterKeys = [] }) {
   if (!mountEl) return;
 
-  let state = {
-    q: "",
-    sortKey: null,
-    sortDir: "asc",
-  };
+  let state = { q: "", sortKey: null, sortDir: "asc" };
 
   const wrap = document.createElement("div");
 
   const toolbar = document.createElement("div");
   toolbar.className = "table-toolbar";
   toolbar.innerHTML = `
-    <input class="input" type="text" placeholder="Filtrar..." />
+    <input class="input table-filter" type="text" placeholder="Filtrar..." />
     <div class="muted"><span class="mono">${rows.length}</span> registro(s)</div>
   `;
 
@@ -170,12 +150,8 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
     th.textContent = c.title;
     th.title = "Clique para ordenar";
     th.addEventListener("click", () => {
-      if (state.sortKey === c.key) {
-        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-      } else {
-        state.sortKey = c.key;
-        state.sortDir = "asc";
-      }
+      if (state.sortKey === c.key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      else { state.sortKey = c.key; state.sortDir = "asc"; }
       paint();
     });
     trh.appendChild(th);
@@ -257,28 +233,29 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
   paint();
 }
 
-/* ===== fim do ITEM 2 ===== */
+function mountError(mountEl, e) {
+  if (!mountEl) return;
+  mountEl.innerHTML = `<pre class="output err">${pretty({ error: e.message, data: e.data })}</pre>`;
+}
+
+/* ===== fim ITEM 2 ===== */
 
 function routeNameFromHash() {
   const h = (window.location.hash || "").trim();
-  // #/products
   const m = h.match(/^#\/([a-z-]+)/i);
   const name = m ? m[1] : "config";
   return ROUTES[name] ? name : "config";
 }
 
 function showPage(name) {
-  // pages
   document.querySelectorAll(".page").forEach((p) => {
-    p.style.display = p.dataset.page === name ? "block" : "none";
+    p.style.display = (p.dataset.page === name) ? "block" : "none";
   });
 
-  // nav active
   document.querySelectorAll(".navLink").forEach((a) => {
     a.classList.toggle("active", a.dataset.route === name);
   });
 
-  // top title/desc
   byId("pageTitle").textContent = ROUTES[name].title;
   byId("pageDesc").textContent = ROUTES[name].desc;
 }
@@ -328,67 +305,60 @@ async function onCreateProduct() {
       name: byId("pName").value,
       unit: byId("pUnit").value,
     };
-    const data = await fetchJson("/products", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const data = await fetchJson("/products", { method: "POST", body: JSON.stringify(payload) });
     setOut("productOut", data, "ok");
   } catch (e) {
     setOut("productOut", { error: e.message, data: e.data }, "err");
   }
 }
 
+/** LISTA RÁPIDA (AGORA EM TABELA) */
 async function onProductsMin() {
-  setOut("productsMinOut", "Carregando /products/min...", "ok");
+  const mount = byId("productsMinTable");
+  mount.innerHTML = `<div class="muted">Carregando...</div>`;
+
   try {
     const data = await fetchJson("/products/min");
-    setOut("productsMinOut", data, "ok");
-  } catch (e) {
-    setOut("productsMinOut", { error: e.message, data: e.data }, "err");
-  }
-}
-
-/** NOVO: tabela de produtos (id, name, unit) */
-async function onProductsTable() {
-  const mount = byId("productsTable");
-  if (!mount) return;
-
-  mount.innerHTML = `<div class="muted">Carregando tabela...</div>`;
-
-  try {
-    let rows = null;
-
-    // Tenta /products/min (ideal). Se não existir, cai pro /products.
-    try {
-      rows = await fetchJson("/products/min");
-    } catch (e) {
-      if (e?.status === 404) {
-        const all = await fetchJson("/products");
-        rows = (all || []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          unit: p.unit,
-        }));
-      } else {
-        throw e;
-      }
-    }
-
-    const safeRows = Array.isArray(rows) ? rows : [];
 
     renderTable({
       mountEl: mount,
       columns: [
         { key: "id", title: "ID", render: (v) => `<span class="mono">${v ?? ""}</span>` },
         { key: "name", title: "Nome" },
-        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${v ?? ""}</span>` },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="tag">${v ?? ""}</span>` },
       ],
-      rows: safeRows,
-      emptyText: "Sem produtos cadastrados.",
+      rows: Array.isArray(data) ? data : [],
+      emptyText: "Nenhum produto encontrado.",
       filterKeys: ["id", "name", "unit"],
     });
   } catch (e) {
-    mount.innerHTML = `<pre class="output err">${pretty({ error: e.message, data: e.data })}</pre>`;
+    mountError(mount, e);
+  }
+}
+
+/** TABELA COMPLETA */
+async function onProductsTable() {
+  const mount = byId("productsTable");
+  mount.innerHTML = `<div class="muted">Carregando...</div>`;
+
+  try {
+    const data = await fetchJson("/products");
+
+    renderTable({
+      mountEl: mount,
+      columns: [
+        { key: "id", title: "ID", render: (v) => `<span class="mono">${v ?? ""}</span>` },
+        { key: "sku", title: "SKU", render: (v) => `<span class="tag">${v ?? ""}</span>` },
+        { key: "name", title: "Nome" },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="tag">${v ?? ""}</span>` },
+        { key: "created_at", title: "Criado em", render: (v) => `<span class="mono">${fmtDateTime(v)}</span>` },
+      ],
+      rows: Array.isArray(data) ? data : [],
+      emptyText: "Nenhum produto encontrado.",
+      filterKeys: ["id", "sku", "name", "unit", "created_at"],
+    });
+  } catch (e) {
+    mountError(mount, e);
   }
 }
 
@@ -406,10 +376,7 @@ async function onCreateMovement() {
     const payload = { product_id, type, quantity };
     if (note) payload.note = note;
 
-    const data = await fetchJson("/stock/movements", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const data = await fetchJson("/stock/movements", { method: "POST", body: JSON.stringify(payload) });
     setOut("movementOut", data, "ok");
   } catch (e) {
     setOut("movementOut", { error: e.message, data: e.data }, "err");
@@ -450,30 +417,30 @@ async function onStatement() {
 // Boot
 // --------------------
 function wire() {
-  // config save/reset
   byId("btnSaveApi").addEventListener("click", () => {
     saveApiBase(byId("apiBase").value);
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
   });
+
   byId("btnResetApi").addEventListener("click", () => {
     saveApiBase(guessApiBase());
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
   });
 
-  // top buttons
   byId("btnHealth").addEventListener("click", onHealth);
   byId("btnRoutes").addEventListener("click", onRoutes);
 
-  // pages
   byId("btnCreateProduct").addEventListener("click", onCreateProduct);
   byId("btnLoadProductsMin").addEventListener("click", onProductsMin);
-  byId("btnLoadProductsTable").addEventListener("click", onProductsTable);
+
+  // NOVO: botão da tabela completa
+  const btnTbl = byId("btnLoadProductsTable");
+  if (btnTbl) btnTbl.addEventListener("click", onProductsTable);
 
   byId("btnCreateMovement").addEventListener("click", onCreateMovement);
   byId("btnLoadBalance").addEventListener("click", onBalance);
   byId("btnLoadStatement").addEventListener("click", onStatement);
 
-  // route init
   const applyRoute = () => showPage(routeNameFromHash());
   window.addEventListener("hashchange", applyRoute);
   applyRoute();
@@ -483,7 +450,5 @@ document.addEventListener("DOMContentLoaded", () => {
   loadApiBase();
   setApiPill("warn", "API: não testada");
   wire();
-
-  // default route
   if (!window.location.hash) window.location.hash = "#/config";
 });
