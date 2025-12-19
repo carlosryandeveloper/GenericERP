@@ -14,3 +14,7 @@ Thumbs.db
 
 # Data
 pgdata/
+
+# local sqlite db
+backend/dev.db
+*.db
