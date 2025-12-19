@@ -27,7 +27,7 @@
       </nav>
 
       <div class="sideFoot">
-        <div class="pill warn" id="apiPill">
+        <div class="pill" id="apiPill">
           <span class="dot"></span>
           <span class="txt" id="apiPillText">API: não testada</span>
         </div>
@@ -113,7 +113,10 @@
             <button class="btn ghost" id="btnLoadProductsMin">Carregar</button>
           </div>
           <div class="cardB">
-            <pre id="productsMinOut" class="output empty">Sem ação ainda.</pre>
+            <!-- Antes era <pre id="productsMinOut"> ... -->
+            <div id="productsMinTable" class="tableMount">
+              <div class="muted">Sem ação ainda.</div>
+            </div>
           </div>
         </div>
 
@@ -127,7 +130,9 @@
             <button class="btn ghost" id="btnLoadProductsTable">Carregar tabela</button>
           </div>
           <div class="cardB">
-            <div id="productsTable"></div>
+            <div id="productsTable" class="tableMount">
+              <div class="muted">Sem ação ainda.</div>
+            </div>
           </div>
         </div>
       </section>
