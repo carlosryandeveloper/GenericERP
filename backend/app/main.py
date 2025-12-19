@@ -1,4 +1,3 @@
-cat > app/main.py <<'PY'
 from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import SQLModel, Session, select
 from sqlalchemy import func, case
@@ -34,6 +33,11 @@ def debug_routes():
 
 @app.post("/products", response_model=Product)
 def create_product(product: Product, session: Session = Depends(get_session)):
+    # Regra de negócio: SKU deve ser único
+    existing = session.exec(select(Product).where(Product.sku == product.sku)).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="sku already exists")
+
     session.add(product)
     session.commit()
     session.refresh(product)
@@ -109,4 +113,3 @@ def stock_balance_by_product(product_id: int, session: Session = Depends(get_ses
         raise HTTPException(status_code=404, detail="product not found")
 
     return StockBalance(**dict(row._mapping))
-PY
