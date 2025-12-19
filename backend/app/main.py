@@ -1,7 +1,7 @@
-cat > app/main.py <<'PY'
 from datetime import date, datetime, time, timedelta
 
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel, Session, select
 from sqlalchemy import func, case
 
@@ -37,6 +37,15 @@ class StockStatement(SQLModel):
 
 app = FastAPI(title="GenericERP API", version="0.1.0")
 
+# Libera o front chamar a API (útil pro seu index.html)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.on_event("startup")
 def on_startup():
@@ -55,7 +64,6 @@ def debug_routes():
 
 @app.post("/products", response_model=Product)
 def create_product(product: Product, session: Session = Depends(get_session)):
-    # Regra: SKU deve ser único
     existing = session.exec(select(Product).where(Product.sku == product.sku)).first()
     if existing:
         raise HTTPException(status_code=409, detail="sku already exists")
@@ -157,7 +165,6 @@ def stock_statement(
         else_=0,
     )
 
-    # saldo anterior ao período
     stmt_start = select(func.coalesce(func.sum(signed_qty_expr), 0)).where(
         StockMovement.product_id == product_id
     )
@@ -166,7 +173,6 @@ def stock_statement(
 
     starting_balance = float(session.exec(stmt_start).one())
 
-    # movimentos no período
     stmt = select(StockMovement).where(StockMovement.product_id == product_id)
     if start_dt:
         stmt = stmt.where(StockMovement.created_at >= start_dt)
@@ -209,4 +215,3 @@ def stock_statement(
         ending_balance=balance,
         lines=lines,
     )
-PY
