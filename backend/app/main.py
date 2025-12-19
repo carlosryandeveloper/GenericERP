@@ -93,3 +93,54 @@ def stock_balance_by_product(product_id: int, session: Session = Depends(get_ses
         raise HTTPException(status_code=404, detail="product not found")
 
     return StockBalance(**row._asdict())
+
+@app.get("/stock/balance", response_model=list[StockBalance])
+def stock_balance(session: Session = Depends(get_session)):
+    signed_qty = case(
+        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
+        (StockMovement.type == "OUT", -StockMovement.quantity),
+        else_=0,
+    )
+
+    stmt = (
+        select(
+            Product.id.label("product_id"),
+            Product.sku,
+            Product.name,
+            func.coalesce(func.sum(signed_qty), 0).label("balance"),
+        )
+        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
+        .group_by(Product.id, Product.sku, Product.name)
+        .order_by(Product.id)
+    )
+
+    rows = session.exec(stmt).all()
+    return [StockBalance(**dict(r._mapping)) for r in rows]
+
+
+@app.get("/stock/balance/{product_id}", response_model=StockBalance)
+def stock_balance_by_product(product_id: int, session: Session = Depends(get_session)):
+    signed_qty = case(
+        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
+        (StockMovement.type == "OUT", -StockMovement.quantity),
+        else_=0,
+    )
+
+    stmt = (
+        select(
+            Product.id.label("product_id"),
+            Product.sku,
+            Product.name,
+            func.coalesce(func.sum(signed_qty), 0).label("balance"),
+        )
+        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
+        .where(Product.id == product_id)
+        .group_by(Product.id, Product.sku, Product.name)
+    )
+
+    row = session.exec(stmt).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="product not found")
+
+    return StockBalance(**dict(row._mapping))
+
