@@ -1,3 +1,4 @@
+cat > app/main.py <<'PY'
 from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import SQLModel, Session, select
 from sqlalchemy import func, case
@@ -28,7 +29,6 @@ def health():
 
 @app.get("/debug/routes")
 def debug_routes():
-    # Lista todas as rotas registradas (ajuda a provar que /stock/balance existe)
     return sorted({getattr(r, "path", "") for r in app.routes})
 
 
@@ -62,7 +62,6 @@ def list_movements(session: Session = Depends(get_session)):
 
 @app.get("/stock/balance", response_model=list[StockBalance])
 def stock_balance(session: Session = Depends(get_session)):
-    # IN e ADJUST somam, OUT subtrai, TRANSFER fica neutro (por enquanto)
     signed_qty = case(
         (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
         (StockMovement.type == "OUT", -StockMovement.quantity),
@@ -100,13 +99,4 @@ def stock_balance_by_product(product_id: int, session: Session = Depends(get_ses
             Product.name,
             func.coalesce(func.sum(signed_qty), 0).label("balance"),
         )
-        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
-        .where(Product.id == product_id)
-        .group_by(Product.id, Product.sku, Product.name)
-    )
-
-    row = session.exec(stmt).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="product not found")
-
-    return StockBalance(**dict(row._mapping))
+        .outerjoin(StockMovement, StockMovement.product_id == Product.id_
