@@ -1,3 +1,5 @@
+nano frontend/app.js
+
 const byId = (id) => document.getElementById(id);
 
 const FALLBACK_LOCAL = "http://localhost:8000";
