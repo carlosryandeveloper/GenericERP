@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GenericERP - Front (v0.1)</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <h1>GenericERP <span class="pill">Front v0.1</span></h1>
+  <p class="sub">Base de UI pra testar: Produtos • Movimentações • Saldo • Extrato (via API).</p>
+
+  <section>
+    <h2>Config</h2>
+    <div class="row">
+      <input id="apiBase" placeholder="API Base (ex: http://localhost:8000)" />
+      <button id="btnHealth">Testar /health</button>
+    </div>
+    <div class="hint">
+      Por padrão, aponta pra <b>http://localhost:8000</b>.
+      Se você abrir este HTML direto (file://), o navegador pode bloquear requisições por CORS.
+      Soluções: habilitar CORS no backend ou servir este front por um servidor web.
+    </div>
+    <pre id="healthResult"></pre>
+  </section>
+
+  <section>
+    <h2>Criar Produto</h2>
+    <div class="row">
+      <input id="sku" placeholder="SKU (único) ex: P-001" />
+      <input id="name" placeholder="Nome ex: Caneta Azul" class="grow" />
+      <input id="unit" placeholder="Unidade ex: UN" />
+      <button id="btnCreateProduct">Criar</button>
+    </div>
+    <div class="hint">Se tentar SKU repetido, o backend deve responder <b>409</b> (sku already exists).</div>
+    <pre id="productResult"></pre>
+  </section>
+
+  <section>
+    <h2>Criar Movimentação</h2>
+    <div class="row">
+      <input id="productId" type="number" placeholder="Product ID (ex: 1)" />
+      <select id="type">
+        <option value="IN">IN (Entrada)</option>
+        <option value="OUT">OUT (Saída)</option>
+        <option value="ADJUST">ADJUST (Ajuste)</option>
+      </select>
+      <input id="qty" type="number" step="0.01" placeholder="Quantidade (ex: 10)" />
+      <input id="note" placeholder="Observação (opcional)" class="grow" />
+      <button id="btnCreateMove">Lançar</button>
+    </div>
+    <pre id="moveResult"></pre>
+  </section>
+
+  <section>
+    <h2>Saldo</h2>
+    <div class="row">
+      <button id="btnBalance">Carregar /stock/balance</button>
+    </div>
+    <pre id="balanceResult"></pre>
+  </section>
+
+  <section>
+    <h2>Extrato</h2>
+    <div class="row">
+      <input id="statementProductId" type="number" placeholder="Product ID (ex: 1)" />
+      <input id="fromDate" placeholder="from_date (YYYY-MM-DD)" />
+      <input id="toDate" placeholder="to_date (YYYY-MM-DD)" />
+      <button id="btnStatement">Carregar extrato</button>
+    </div>
+    <div class="hint">Endpoint: <code>/stock/statement?product_id=...&from_date=...&to_date=...</code></div>
+    <pre id="statementResult"></pre>
+  </section>
+
+  <script src="./app.js"></script>
+</body>
+</html>

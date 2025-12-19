@@ -1,0 +1,34 @@
+:root { color-scheme: light dark; }
+body { font-family: Arial, sans-serif; margin: 20px; max-width: 980px; }
+h1 { margin: 0 0 6px; }
+.sub { margin: 0 0 18px; opacity: .8; }
+
+section { border: 1px solid #4444; padding: 12px; margin: 12px 0; border-radius: 10px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+input, select {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #4446;
+  min-width: 180px;
+}
+
+button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #4446;
+  cursor: pointer;
+}
+
+pre {
+  background: #00000010;
+  padding: 10px;
+  border-radius: 10px;
+  overflow: auto;
+}
+
+.hint { opacity: .75; font-size: 13px; margin-top: 6px; }
+.ok { color: #1a7f37; }
+.err { color: #b42318; }
+.pill { display:inline-block; padding:2px 8px; border-radius: 999px; border:1px solid #4446; font-size:12px; opacity:.9; }
+.grow { min-width: 260px; flex: 1; }
