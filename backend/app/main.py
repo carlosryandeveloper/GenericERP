@@ -1,9 +1,17 @@
+from sqlalchemy import func, case
+from sqlmodel import SQLModel
 from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import SQLModel, Session, select
 from .db import engine, get_session
 from .models import Product, StockMovement
 
 app = FastAPI(title="GenericERP API", version="0.1.0")
+
+class StockBalance(SQLModel):
+    product_id: int
+    sku: str
+    name: str
+    balance: float
 
 @app.on_event("startup")
 def on_startup():
@@ -36,3 +44,52 @@ def create_movement(mv: StockMovement, session: Session = Depends(get_session)):
 @app.get("/stock/movements", response_model=list[StockMovement])
 def list_movements(session: Session = Depends(get_session)):
     return session.exec(select(StockMovement).order_by(StockMovement.id.desc())).all()
+@app.get("/stock/balance", response_model=list[StockBalance])
+def stock_balance(session: Session = Depends(get_session)):
+    signed_qty = case(
+        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
+        (StockMovement.type == "OUT", -StockMovement.quantity),
+        else_=0,
+    )
+
+    stmt = (
+        select(
+            Product.id.label("product_id"),
+            Product.sku,
+            Product.name,
+            func.coalesce(func.sum(signed_qty), 0).label("balance"),
+        )
+        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
+        .group_by(Product.id, Product.sku, Product.name)
+        .order_by(Product.id)
+    )
+
+    rows = session.exec(stmt).all()
+    return [StockBalance(**row._asdict()) for row in rows]
+
+
+@app.get("/stock/balance/{product_id}", response_model=StockBalance)
+def stock_balance_by_product(product_id: int, session: Session = Depends(get_session)):
+    signed_qty = case(
+        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
+        (StockMovement.type == "OUT", -StockMovement.quantity),
+        else_=0,
+    )
+
+    stmt = (
+        select(
+            Product.id.label("product_id"),
+            Product.sku,
+            Product.name,
+            func.coalesce(func.sum(signed_qty), 0).label("balance"),
+        )
+        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
+        .where(Product.id == product_id)
+        .group_by(Product.id, Product.sku, Product.name)
+    )
+
+    row = session.exec(stmt).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="product not found")
+
+    return StockBalance(**row._asdict())
