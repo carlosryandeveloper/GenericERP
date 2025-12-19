@@ -1,3 +1,5 @@
+from datetime import date, datetime, time, timedelta
+
 from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import SQLModel, Session, select
 from sqlalchemy import func, case
@@ -11,6 +13,25 @@ class StockBalance(SQLModel):
     sku: str
     name: str
     balance: float
+
+
+class StockStatementLine(SQLModel):
+    id: int
+    created_at: datetime
+    type: str
+    quantity: float
+    signed_quantity: float
+    note: str | None = None
+    balance_after: float
+
+
+class StockStatement(SQLModel):
+    product_id: int
+    from_date: date | None = None
+    to_date: date | None = None
+    starting_balance: float
+    ending_balance: float
+    lines: list[StockStatementLine]
 
 
 app = FastAPI(title="GenericERP API", version="0.1.0")
@@ -33,7 +54,7 @@ def debug_routes():
 
 @app.post("/products", response_model=Product)
 def create_product(product: Product, session: Session = Depends(get_session)):
-    # Regra de negócio: SKU deve ser único
+    # Regra: SKU deve ser único
     existing = session.exec(select(Product).where(Product.sku == product.sku)).first()
     if existing:
         raise HTTPException(status_code=409, detail="sku already exists")
@@ -113,3 +134,79 @@ def stock_balance_by_product(product_id: int, session: Session = Depends(get_ses
         raise HTTPException(status_code=404, detail="product not found")
 
     return StockBalance(**dict(row._mapping))
+
+
+@app.get("/stock/statement", response_model=StockStatement)
+def stock_statement(
+    product_id: int,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    session: Session = Depends(get_session),
+):
+    # Confere se o produto existe (extrato sem produto é fofoca)
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="product not found")
+
+    start_dt = datetime.combine(from_date, time.min) if from_date else None
+    end_dt = (
+        datetime.combine(to_date + timedelta(days=1), time.min) if to_date else None
+    )  # exclusivo (menor que)
+
+    signed_qty = case(
+        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
+        (StockMovement.type == "OUT", -StockMovement.quantity),
+        else_=0,
+    )
+
+    # Saldo antes do período (pra começar o extrato com base correta)
+    stmt_start = select(func.coalesce(func.sum(signed_qty), 0)).where(
+        StockMovement.product_id == product_id
+    )
+    if start_dt:
+        stmt_start = stmt_start.where(StockMovement.created_at < start_dt)
+    starting_balance = float(session.exec(stmt_start).one())
+
+    # Movimentações dentro do período
+    stmt = select(StockMovement).where(StockMovement.product_id == product_id)
+    if start_dt:
+        stmt = stmt.where(StockMovement.created_at >= start_dt)
+    if end_dt:
+        stmt = stmt.where(StockMovement.created_at < end_dt)
+
+    stmt = stmt.order_by(StockMovement.created_at.asc(), StockMovement.id.asc())
+    movements = session.exec(stmt).all()
+
+    balance = starting_balance
+    lines: list[StockStatementLine] = []
+
+    for mv in movements:
+        if mv.type in ("IN", "ADJUST"):
+            signed = float(mv.quantity)
+        elif mv.type == "OUT":
+            signed = -float(mv.quantity)
+        else:
+            signed = 0.0
+
+        balance += signed
+
+        lines.append(
+            StockStatementLine(
+                id=mv.id,
+                created_at=mv.created_at,
+                type=mv.type,
+                quantity=float(mv.quantity),
+                signed_quantity=signed,
+                note=getattr(mv, "note", None),
+                balance_after=balance,
+            )
+        )
+
+    return StockStatement(
+        product_id=product_id,
+        from_date=from_date,
+        to_date=to_date,
+        starting_balance=starting_balance,
+        ending_balance=balance,
+        lines=lines,
+    )
