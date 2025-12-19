@@ -1,137 +1,206 @@
+const byId = (id) => document.getElementById(id);
+
 const FALLBACK_LOCAL = "http://localhost:8000";
-
-function byId(id) { return document.getElementById(id); }
-function pretty(x) { return JSON.stringify(x, null, 2); }
-
-function setApiStatus(kind, text) {
-  const dot = byId("apiDot");
-  const label = byId("apiLabel");
-  dot.classList.remove("ok", "err");
-  if (kind === "ok") dot.classList.add("ok");
-  if (kind === "err") dot.classList.add("err");
-  label.textContent = text;
-}
-
-function show(elId, value, isError = false) {
-  const el = byId(elId);
-  el.textContent = (typeof value === "string") ? value : pretty(value);
-  el.classList.remove("ok", "err");
-  el.classList.add(isError ? "err" : "ok");
-}
 
 function guessApiBase() {
   // Ex.: https://<nome>-5173.app.github.dev  -> backend: https://<nome>-8000.app.github.dev
-  const url = window.location.href;
-
-  if (url.includes(".app.github.dev")) {
+  const raw = window.location.origin;
+  if (raw.includes(".app.github.dev")) {
     return window.location.origin.replace(/-\d+\./, "-8000.");
   }
-
   return FALLBACK_LOCAL;
 }
 
-function getApiBase() {
-  const raw = (byId("apiBase").value || "").trim();
-  const base = raw || guessApiBase();
-  return base.replace(/\/$/, "");
+function normalizeBase(url) {
+  let u = (url || "").trim();
+  if (!u) return "";
+  // se usuário colar sem protocolo
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  // remove barra final
+  u = u.replace(/\/+$/, "");
+  return u;
 }
 
-async function request(path, options = {}) {
-  const base = getApiBase();
-  const res = await fetch(base + path, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-
-  const text = await res.text();
-  let data = text;
-  try { data = JSON.parse(text); } catch {}
-
-  if (!res.ok) {
-    const detail = (data && typeof data === "object" && data.detail) ? data.detail : text;
-    throw new Error(`HTTP ${res.status}: ${detail}`);
+function pretty(v) {
+  try {
+    return typeof v === "string" ? v : JSON.stringify(v, null, 2);
+  } catch {
+    return String(v);
   }
+}
 
-  return data;
+function setOut(elId, value, kind = "ok") {
+  const el = byId(elId);
+  el.classList.remove("empty", "ok", "err");
+  if (value === null || value === undefined || value === "") {
+    el.textContent = "Sem dados.";
+    el.classList.add("empty");
+    return;
+  }
+  el.textContent = pretty(value);
+  el.classList.add(kind === "err" ? "err" : "ok");
+}
+
+function setApiPill(kind, text) {
+  const pill = byId("apiPill");
+  const t = byId("apiPillText");
+  pill.classList.remove("ok", "err");
+  if (kind === "ok") pill.classList.add("ok");
+  if (kind === "err") pill.classList.add("err");
+  t.textContent = text;
+}
+
+function apiBase() {
+  return normalizeBase(byId("apiBase").value);
+}
+
+async function fetchJson(path, opts = {}) {
+  const base = apiBase();
+  if (!base) throw new Error("API Base vazia");
+
+  const url = base + path;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(url, {
+      ...opts,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(opts.headers || {}),
+      },
+    });
+
+    const text = await res.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!res.ok) {
+      const msg = data?.detail ? `${res.status} ${data.detail}` : `${res.status} ${res.statusText}`;
+      const e = new Error(msg);
+      e.status = res.status;
+      e.data = data;
+      throw e;
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function parseNumber(v) {
+  const n = Number(String(v || "").replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function parseDateOrNull(v) {
+  const s = (v || "").trim();
+  if (!s) return null;
+  // sem validação pesada; backend valida coerência
+  return s;
 }
 
 // init
 byId("apiBase").value = guessApiBase();
-setApiStatus(null, "API: não testada");
+setApiPill("warn", "API: não testada");
 
-byId("btnHealth").onclick = async () => {
+// actions
+byId("btnHealth").addEventListener("click", async () => {
+  setOut("cfgOut", "Chamando /health ...", "ok");
   try {
-    const data = await request("/health");
-    show("healthResult", data, false);
-    setApiStatus("ok", `API: OK (${getApiBase()})`);
+    const data = await fetchJson("/health");
+    setOut("cfgOut", data, "ok");
+    setApiPill("ok", `API: OK (${apiBase()})`);
   } catch (e) {
-    show("healthResult", String(e), true);
-    setApiStatus("err", `API: erro (${getApiBase()})`);
+    setOut("cfgOut", { error: String(e.message || e) }, "err");
+    setApiPill("err", `API: erro (${apiBase() || "sem base"})`);
   }
-};
+});
 
-byId("btnRoutes").onclick = async () => {
+byId("btnRoutes").addEventListener("click", async () => {
+  setOut("cfgOut", "Chamando /debug/routes ...", "ok");
   try {
-    const data = await request("/debug/routes");
-    show("healthResult", data, false);
+    const data = await fetchJson("/debug/routes");
+    setOut("cfgOut", data, "ok");
   } catch (e) {
-    show("healthResult", String(e), true);
+    setOut("cfgOut", { error: String(e.message || e), data: e.data }, "err");
   }
-};
+});
 
-byId("btnCreateProduct").onclick = async () => {
+byId("btnCreateProduct").addEventListener("click", async () => {
+  const sku = byId("pSku").value;
+  const name = byId("pName").value;
+  const unit = byId("pUnit").value;
+
+  setOut("productOut", "Criando produto...", "ok");
   try {
-    const payload = {
-      sku: byId("sku").value.trim(),
-      name: byId("name").value.trim(),
-      unit: byId("unit").value.trim(),
-    };
-    const data = await request("/products", { method: "POST", body: JSON.stringify(payload) });
-    show("productResult", data, false);
+    const data = await fetchJson("/products", {
+      method: "POST",
+      body: JSON.stringify({ sku, name, unit }),
+    });
+    setOut("productOut", data, "ok");
   } catch (e) {
-    show("productResult", String(e), true);
+    setOut("productOut", { error: String(e.message || e), data: e.data }, "err");
   }
-};
+});
 
-byId("btnCreateMove").onclick = async () => {
+byId("btnCreateMovement").addEventListener("click", async () => {
+  const product_id = parseInt(byId("mProductId").value, 10);
+  const type = byId("mType").value;
+  const quantity = parseNumber(byId("mQty").value);
+  const note = byId("mNote").value;
+
+  setOut("movementOut", "Lançando movimentação...", "ok");
   try {
-    const payload = {
-      product_id: Number(byId("productId").value),
-      type: byId("type").value,
-      quantity: Number(byId("qty").value),
-      note: (byId("note").value || "").trim() || null,
-    };
-    const data = await request("/stock/movements", { method: "POST", body: JSON.stringify(payload) });
-    show("moveResult", data, false);
-  } catch (e) {
-    show("moveResult", String(e), true);
-  }
-};
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("quantity inválida");
 
-byId("btnBalance").onclick = async () => {
+    const payload = { product_id, type, quantity };
+    if (note && note.trim()) payload.note = note.trim();
+
+    const data = await fetchJson("/stock/movements", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    setOut("movementOut", data, "ok");
+  } catch (e) {
+    setOut("movementOut", { error: String(e.message || e), data: e.data }, "err");
+  }
+});
+
+byId("btnLoadBalance").addEventListener("click", async () => {
+  setOut("balanceOut", "Carregando saldo...", "ok");
   try {
-    const data = await request("/stock/balance");
-    show("balanceResult", data, false);
+    const data = await fetchJson("/stock/balance");
+    setOut("balanceOut", data, "ok");
   } catch (e) {
-    show("balanceResult", String(e), true);
+    setOut("balanceOut", { error: String(e.message || e), data: e.data }, "err");
   }
-};
+});
 
-byId("btnStatement").onclick = async () => {
+byId("btnLoadStatement").addEventListener("click", async () => {
+  const product_id = parseInt(byId("sProductId").value, 10);
+  const from = parseDateOrNull(byId("sFrom").value);
+  const to = parseDateOrNull(byId("sTo").value);
+
+  setOut("statementOut", "Carregando extrato...", "ok");
   try {
-    const productId = Number(byId("statementProductId").value);
-    if (!productId) throw new Error("Informe um Product ID válido.");
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
 
-    const fromDate = (byId("fromDate").value || "").trim();
-    const toDate = (byId("toDate").value || "").trim();
+    const params = new URLSearchParams({ product_id: String(product_id) });
+    if (from) params.set("from_date", from);
+    if (to) params.set("to_date", to);
 
-    const params = new URLSearchParams({ product_id: String(productId) });
-    if (fromDate) params.set("from_date", fromDate);
-    if (toDate) params.set("to_date", toDate);
-
-    const data = await request(`/stock/statement?${params.toString()}`);
-    show("statementResult", data, false);
+    const data = await fetchJson("/stock/statement?" + params.toString());
+    setOut("statementOut", data, "ok");
   } catch (e) {
-    show("statementResult", String(e), true);
+    setOut("statementOut", { error: String(e.message || e), data: e.data }, "err");
   }
-};
+});

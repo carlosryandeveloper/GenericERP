@@ -3,169 +3,166 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GenericERP - Front (v0.1)</title>
+  <title>GenericERP - Front v0.1</title>
   <link rel="stylesheet" href="./style.css" />
+  <script defer src="./app.js"></script>
 </head>
-
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">GE</div>
-      <div>
-        <h1>GenericERP</h1>
-        <p class="subtitle">Front v0.1 • Produtos • Movimentações • Saldo • Extrato</p>
-      </div>
-    </div>
-
-    <div class="status">
-      <span class="dot" id="apiDot" title="Status da API"></span>
-      <span id="apiLabel">API: não testada</span>
-    </div>
-  </header>
-
-  <main class="container">
-    <section class="card">
-      <div class="card-head">
-        <h2>Configuração</h2>
-        <p class="muted">Em Codespaces, o front tenta detectar automaticamente o host do backend.</p>
-      </div>
-
-      <div class="grid-2">
-        <label class="field">
-          <span>API Base</span>
-          <input id="apiBase" placeholder="Ex: https://seu-codespace-8000.app.github.dev" />
-        </label>
-
-        <div class="actions">
-          <button class="btn primary" id="btnHealth">Testar /health</button>
-          <button class="btn" id="btnRoutes">Ver rotas</button>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">GE</div>
+        <div>
+          <h1>GenericERP <span class="badge">Front v0.1</span></h1>
+          <div class="sub">Base de UI pra testar: <b>Produtos</b> • <b>Movimentações</b> • <b>Saldo</b> • <b>Extrato</b> (via API)</div>
         </div>
       </div>
 
-      <pre id="healthResult" class="output"></pre>
+      <div id="apiPill" class="pill">
+        <span class="dot"></span>
+        <span id="apiPillText" class="txt">API: não testada</span>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <section class="card">
+      <div class="card-h">
+        <div>
+          <h2 class="card-title">Configuração</h2>
+          <p class="card-desc">Em Codespaces, o front tenta detectar automaticamente o host do backend.</p>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="btnHealth">Testar /health</button>
+          <button class="btn ghost" id="btnRoutes">Ver rotas</button>
+        </div>
+      </div>
+      <div class="card-b">
+        <label for="apiBase">API Base</label>
+        <input class="input" id="apiBase" placeholder="http://localhost:8000" />
+        <div class="hint">
+          Dica: se algo parecer “travado”, faz um <span class="kbd">Ctrl</span> + <span class="kbd">F5</span>.
+        </div>
+
+        <pre id="cfgOut" class="output empty">Sem chamada ainda.</pre>
+      </div>
     </section>
 
-    <div class="split">
+    <div class="grid">
+      <!-- PRODUTO -->
       <section class="card">
-        <div class="card-head">
-          <h2>Criar Produto</h2>
-          <p class="muted">SKU é único. Repetiu? Backend responde 409.</p>
-        </div>
-
-        <div class="grid-3">
-          <label class="field">
-            <span>SKU</span>
-            <input id="sku" placeholder="Ex: P-001" />
-          </label>
-
-          <label class="field grow">
-            <span>Nome</span>
-            <input id="name" placeholder="Ex: Caneta Azul" />
-          </label>
-
-          <label class="field">
-            <span>Unidade</span>
-            <input id="unit" placeholder="Ex: UN" />
-          </label>
-        </div>
-
-        <div class="actions">
+        <div class="card-h">
+          <div>
+            <h2 class="card-title">Criar Produto</h2>
+            <p class="card-desc">SKU é único. Repetiu? Backend responde <b>409</b>.</p>
+          </div>
           <button class="btn primary" id="btnCreateProduct">Criar produto</button>
         </div>
+        <div class="card-b">
+          <div class="row">
+            <div class="field mid">
+              <label>SKU</label>
+              <input class="input" id="pSku" placeholder="P-001" />
+            </div>
+            <div class="field big">
+              <label>Nome</label>
+              <input class="input" id="pName" placeholder="Caneta Azul" />
+            </div>
+            <div class="field small">
+              <label>Unidade</label>
+              <input class="input" id="pUnit" placeholder="UN" />
+            </div>
+          </div>
 
-        <pre id="productResult" class="output"></pre>
+          <pre id="productOut" class="output empty">Sem ação ainda.</pre>
+        </div>
       </section>
 
+      <!-- MOVIMENTO -->
       <section class="card">
-        <div class="card-head">
-          <h2>Criar Movimentação</h2>
-          <p class="muted">Entrada (IN), Saída (OUT) e Ajuste (ADJUST).</p>
+        <div class="card-h">
+          <div>
+            <h2 class="card-title">Criar Movimentação</h2>
+            <p class="card-desc">Entrada (<b>IN</b>), Saída (<b>OUT</b>) e Ajuste (<b>ADJUST</b>).</p>
+          </div>
+          <button class="btn primary" id="btnCreateMovement">Lançar</button>
         </div>
+        <div class="card-b">
+          <div class="row">
+            <div class="field small">
+              <label>ID do produto</label>
+              <input class="input" id="mProductId" placeholder="Ex: 1" />
+            </div>
+            <div class="field small">
+              <label>Tipo</label>
+              <select id="mType">
+                <option value="IN">IN (Entrada)</option>
+                <option value="OUT">OUT (Saída)</option>
+                <option value="ADJUST">ADJUST (Ajuste)</option>
+              </select>
+            </div>
+            <div class="field small">
+              <label>Quantidade</label>
+              <input class="input" id="mQty" placeholder="Ex: 10" />
+            </div>
+            <div class="field big">
+              <label>Observação</label>
+              <input class="input" id="mNote" placeholder="Opcional (obrigatório para ADJUST)" />
+            </div>
+          </div>
 
-        <div class="grid-4">
-          <label class="field">
-            <span>ID do produto</span>
-            <input id="productId" type="number" placeholder="Ex: 1" />
-          </label>
-
-          <label class="field">
-            <span>Tipo</span>
-            <select id="type">
-              <option value="IN">IN (Entrada)</option>
-              <option value="OUT">OUT (Saída)</option>
-              <option value="ADJUST">ADJUST (Ajuste)</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Quantidade</span>
-            <input id="qty" type="number" step="0.01" placeholder="Ex: 10" />
-          </label>
-
-          <label class="field grow">
-            <span>Observação</span>
-            <input id="note" placeholder="Opcional" />
-          </label>
+          <pre id="movementOut" class="output empty">Sem ação ainda.</pre>
         </div>
-
-        <div class="actions">
-          <button class="btn primary" id="btnCreateMove">Lançar</button>
-        </div>
-
-        <pre id="moveResult" class="output"></pre>
       </section>
     </div>
 
-    <div class="split">
+    <div class="grid2">
+      <!-- SALDO -->
       <section class="card">
-        <div class="card-head">
-          <h2>Saldo</h2>
-          <p class="muted">Somatório por produto com sinal (IN/ADJUST +, OUT -).</p>
+        <div class="card-h">
+          <div>
+            <h2 class="card-title">Saldo</h2>
+            <p class="card-desc">Somatório por produto com sinal (IN/ADJUST +, OUT -).</p>
+          </div>
+          <button class="btn ghost" id="btnLoadBalance">Carregar saldo</button>
         </div>
-
-        <div class="actions">
-          <button class="btn" id="btnBalance">Carregar saldo</button>
+        <div class="card-b">
+          <pre id="balanceOut" class="output empty">Sem ação ainda.</pre>
         </div>
-
-        <pre id="balanceResult" class="output"></pre>
       </section>
 
+      <!-- EXTRATO -->
       <section class="card">
-        <div class="card-head">
-          <h2>Extrato</h2>
-          <p class="muted">Histórico auditável com saldo acumulado por linha.</p>
+        <div class="card-h">
+          <div>
+            <h2 class="card-title">Extrato</h2>
+            <p class="card-desc">Histórico auditável com saldo acumulado por linha.</p>
+          </div>
+          <button class="btn ghost" id="btnLoadStatement">Carregar extrato</button>
         </div>
+        <div class="card-b">
+          <div class="row">
+            <div class="field small">
+              <label>ID do produto</label>
+              <input class="input" id="sProductId" placeholder="Ex: 1" />
+            </div>
+            <div class="field small">
+              <label>De</label>
+              <input class="input" id="sFrom" placeholder="YYYY-MM-DD" />
+            </div>
+            <div class="field small">
+              <label>Até</label>
+              <input class="input" id="sTo" placeholder="YYYY-MM-DD" />
+            </div>
+          </div>
 
-        <div class="grid-3">
-          <label class="field">
-            <span>ID do produto</span>
-            <input id="statementProductId" type="number" placeholder="Ex: 1" />
-          </label>
-
-          <label class="field">
-            <span>De</span>
-            <input id="fromDate" placeholder="YYYY-MM-DD" />
-          </label>
-
-          <label class="field">
-            <span>Até</span>
-            <input id="toDate" placeholder="YYYY-MM-DD" />
-          </label>
+          <pre id="statementOut" class="output empty">Sem ação ainda.</pre>
         </div>
-
-        <div class="actions">
-          <button class="btn" id="btnStatement">Carregar extrato</button>
-        </div>
-
-        <pre id="statementResult" class="output"></pre>
       </section>
     </div>
-  </main>
 
-  <footer class="footer">
-    <span>GenericERP • v0.1 • UI mínima para testes</span>
-  </footer>
-
-  <script src="./app.js"></script>
+    <div class="footer">
+      GenericERP • UI de testes (sem framework) • foco: fluxo, regra e rastreabilidade
+    </div>
+  </div>
 </body>
 </html>
