@@ -99,4 +99,14 @@ def stock_balance_by_product(product_id: int, session: Session = Depends(get_ses
             Product.name,
             func.coalesce(func.sum(signed_qty), 0).label("balance"),
         )
-        .outerjoin(StockMovement, StockMovement.product_id == Product.id_
+        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
+        .where(Product.id == product_id)
+        .group_by(Product.id, Product.sku, Product.name)
+    )
+
+    row = session.exec(stmt).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="product not found")
+
+    return StockBalance(**dict(row._mapping))
+PY
