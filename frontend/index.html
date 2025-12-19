@@ -1,10 +1,10 @@
-cat > frontend/index.html <<'HTML'
+<!-- frontend/index.html -->
 <!doctype html>
 <html lang="pt-br">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GenericERP • Front v0.2</title>
+  <title>GenericERP • Front v0.1</title>
   <link rel="stylesheet" href="./style.css" />
   <script defer src="./app.js"></script>
 </head>
@@ -109,28 +109,30 @@ cat > frontend/index.html <<'HTML'
           <div class="cardH split">
             <div>
               <h2>Lista rápida</h2>
-              <p class="muted">Endpoint: <span class="kbd">/products/min</span> (id, name, unit). Agora em tabela (filtro + ordenação).</p>
+              <p class="muted">Endpoint: <span class="kbd">/products/min</span> (id, name, unit). Bom pra dropdown.</p>
             </div>
             <button class="btn ghost" id="btnLoadProductsMin">Carregar</button>
           </div>
           <div class="cardB">
+            <!-- ALTERAÇÃO: agora é tabela -->
             <div id="productsMinTable"></div>
-            <pre id="productsMinOut" class="output empty hidden"></pre>
+
+            <!-- debug escondido: só aparece se der erro -->
+            <pre id="productsMinOut" class="output empty" style="display:none">Sem ação ainda.</pre>
           </div>
         </div>
 
-        <!-- TABELA COMPLETA -->
+        <!-- NOVO: TABELA COMPLETA -->
         <div class="card">
           <div class="cardH split">
             <div>
               <h2>Produtos (tabela)</h2>
-              <p class="muted">Lista completa (/products) com filtro e ordenação.</p>
+              <p class="muted">Lista completa com filtro e ordenação.</p>
             </div>
             <button class="btn ghost" id="btnLoadProductsTable">Carregar tabela</button>
           </div>
           <div class="cardB">
             <div id="productsTable"></div>
-            <pre id="productsTableOut" class="output empty hidden"></pre>
           </div>
         </div>
       </section>
@@ -231,4 +233,3 @@ cat > frontend/index.html <<'HTML'
   </div>
 </body>
 </html>
-HTML
