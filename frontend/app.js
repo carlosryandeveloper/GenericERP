@@ -1,29 +1,50 @@
-// GenericERP Front (v0.1)
-// Front simples para testar o backend via fetch.
-//
-// IMPORTANTE:
-// - Se abrir o index.html via file://, o navegador pode bloquear por CORS.
-// - Soluções: habilitar CORS no backend, ou servir esse front (ex.: GitHub Pages + backend público).
+// GenericERP Front (v0.1) — mais esperto para Codespaces
 
-const DEFAULT_API_BASE = "http://localhost:8000";
+const FALLBACK_LOCAL = "http://localhost:8000";
 
 function byId(id) { return document.getElementById(id); }
 function pretty(x) { return JSON.stringify(x, null, 2); }
 
-function show(id, value, isError = false) {
-  const el = byId(id);
+function setApiStatus(kind, text) {
+  const dot = byId("apiDot");
+  const label = byId("apiLabel");
+  dot.classList.remove("ok", "err");
+  if (kind === "ok") dot.classList.add("ok");
+  if (kind === "err") dot.classList.add("err");
+  label.textContent = text;
+}
+
+function show(elId, value, isError = false) {
+  const el = byId(elId);
   el.textContent = (typeof value === "string") ? value : pretty(value);
-  el.classList.toggle("err", isError);
-  el.classList.toggle("ok", !isError);
+  el.classList.remove("ok", "err");
+  el.classList.add(isError ? "err" : "ok");
+}
+
+function guessApiBase() {
+  // Se estiver em Codespaces, o host costuma ser algo como:
+  // https://<nome>-5173.app.github.dev  (front)
+  // https://<nome>-8000.app.github.dev  (backend)
+  // Então trocamos "-5173." por "-8000." (ou qualquer "-<porta>." por "-8000.")
+  const url = window.location.href;
+
+  if (url.includes(".app.github.dev")) {
+    return window.location.origin.replace(/-\d+\./, "-8000.");
+  }
+
+  // Caso normal (rodando local)
+  return FALLBACK_LOCAL;
 }
 
 function getApiBase() {
-  const raw = (byId("apiBase").value || DEFAULT_API_BASE).trim();
-  return raw.replace(/\/$/, "");
+  const raw = (byId("apiBase").value || "").trim();
+  const base = raw || guessApiBase();
+  return base.replace(/\/$/, "");
 }
 
 async function request(path, options = {}) {
-  const res = await fetch(getApiBase() + path, {
+  const base = getApiBase();
+  const res = await fetch(base + path, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
@@ -41,13 +62,24 @@ async function request(path, options = {}) {
 }
 
 // init
-byId("apiBase").value = DEFAULT_API_BASE;
+byId("apiBase").value = guessApiBase();
+setApiStatus(null, "API: não testada");
 
-// Actions
 byId("btnHealth").onclick = async () => {
   try {
     const data = await request("/health");
-    show("healthResult", data);
+    show("healthResult", data, false);
+    setApiStatus("ok", `API: OK (${getApiBase()})`);
+  } catch (e) {
+    show("healthResult", String(e), true);
+    setApiStatus("err", `API: erro (${getApiBase()})`);
+  }
+};
+
+byId("btnRoutes").onclick = async () => {
+  try {
+    const data = await request("/debug/routes");
+    show("healthResult", data, false);
   } catch (e) {
     show("healthResult", String(e), true);
   }
@@ -60,11 +92,8 @@ byId("btnCreateProduct").onclick = async () => {
       name: byId("name").value.trim(),
       unit: byId("unit").value.trim(),
     };
-    const data = await request("/products", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    show("productResult", data);
+    const data = await request("/products", { method: "POST", body: JSON.stringify(payload) });
+    show("productResult", data, false);
   } catch (e) {
     show("productResult", String(e), true);
   }
@@ -78,11 +107,8 @@ byId("btnCreateMove").onclick = async () => {
       quantity: Number(byId("qty").value),
       note: (byId("note").value || "").trim() || null,
     };
-    const data = await request("/stock/movements", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    show("moveResult", data);
+    const data = await request("/stock/movements", { method: "POST", body: JSON.stringify(payload) });
+    show("moveResult", data, false);
   } catch (e) {
     show("moveResult", String(e), true);
   }
@@ -91,7 +117,7 @@ byId("btnCreateMove").onclick = async () => {
 byId("btnBalance").onclick = async () => {
   try {
     const data = await request("/stock/balance");
-    show("balanceResult", data);
+    show("balanceResult", data, false);
   } catch (e) {
     show("balanceResult", String(e), true);
   }
@@ -110,7 +136,7 @@ byId("btnStatement").onclick = async () => {
     if (toDate) params.set("to_date", toDate);
 
     const data = await request(`/stock/statement?${params.toString()}`);
-    show("statementResult", data);
+    show("statementResult", data, false);
   } catch (e) {
     show("statementResult", String(e), true);
   }
