@@ -1,3 +1,4 @@
+cat > frontend/index.html <<'HTML'
 <!doctype html>
 <html lang="pt-br">
 <head>
@@ -116,6 +117,20 @@
             <pre id="productsMinOut" class="output empty">Sem ação ainda.</pre>
           </div>
         </div>
+
+        <!-- NOVO: TABELA COMPLETA -->
+        <div class="card">
+          <div class="cardH split">
+            <div>
+              <h2>Produtos (tabela)</h2>
+              <p class="muted">Lista completa com filtro e ordenação.</p>
+            </div>
+            <button class="btn ghost" id="btnLoadProductsTable">Carregar tabela</button>
+          </div>
+          <div class="cardB">
+            <div id="productsTable"></div>
+          </div>
+        </div>
       </section>
 
       <!-- MOVEMENTS -->
@@ -214,3 +229,4 @@
   </div>
 </body>
 </html>
+HTML
