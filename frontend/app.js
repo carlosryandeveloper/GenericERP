@@ -1,5 +1,4 @@
-nano frontend/app.js
-
+cat > frontend/app.js <<'JS'
 const byId = (id) => document.getElementById(id);
 
 const FALLBACK_LOCAL = "http://localhost:8000";
@@ -39,8 +38,11 @@ function setApiPill(kind, text) {
 }
 
 function pretty(v) {
-  try { return typeof v === "string" ? v : JSON.stringify(v, null, 2); }
-  catch { return String(v); }
+  try {
+    return typeof v === "string" ? v : JSON.stringify(v, null, 2);
+  } catch {
+    return String(v);
+  }
 }
 
 function setOut(elId, value, kind = "ok") {
@@ -77,11 +79,16 @@ async function fetchJson(path, opts = {}) {
 
     const text = await res.text();
     let data = null;
-    try { data = text ? JSON.parse(text) : null; }
-    catch { data = { raw: text }; }
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
 
     if (!res.ok) {
-      const msg = data?.detail ? `${res.status} ${data.detail}` : `${res.status} ${res.statusText}`;
+      const msg = data?.detail
+        ? `${res.status} ${data.detail}`
+        : `${res.status} ${res.statusText}`;
       const e = new Error(msg);
       e.status = res.status;
       e.data = data;
@@ -99,6 +106,159 @@ function parseNumber(v) {
   return Number.isFinite(n) ? n : NaN;
 }
 
+/* =========================================================
+   ITEM 2 (ADICIONADO): helpers + renderização em tabela
+   (para substituir JSON na tela por tabelas com filtro/ordem)
+   ========================================================= */
+
+const fmtDateTime = (iso) => {
+  if (!iso) return "";
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(iso));
+  } catch {
+    return String(iso);
+  }
+};
+
+const fmtNumber = (n) => {
+  const num = Number(n);
+  if (Number.isNaN(num)) return String(n ?? "");
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(num);
+};
+
+function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterKeys = [] }) {
+  if (!mountEl) return;
+
+  let state = {
+    q: "",
+    sortKey: null,
+    sortDir: "asc",
+  };
+
+  const wrap = document.createElement("div");
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "table-toolbar";
+  toolbar.innerHTML = `
+    <input type="text" placeholder="Filtrar..." />
+    <div class="muted"><span class="mono">${rows.length}</span> registro(s)</div>
+  `;
+
+  const input = toolbar.querySelector("input");
+  input.addEventListener("input", () => {
+    state.q = input.value.trim().toLowerCase();
+    paint();
+  });
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "erp-table";
+
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+
+  columns.forEach((c) => {
+    const th = document.createElement("th");
+    th.textContent = c.title;
+    th.title = "Clique para ordenar";
+    th.addEventListener("click", () => {
+      if (state.sortKey === c.key) {
+        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        state.sortKey = c.key;
+        state.sortDir = "asc";
+      }
+      paint();
+    });
+    trh.appendChild(th);
+  });
+
+  thead.appendChild(trh);
+
+  const tbody = document.createElement("tbody");
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+
+  wrap.appendChild(toolbar);
+  wrap.appendChild(tableWrap);
+
+  mountEl.innerHTML = "";
+  mountEl.appendChild(wrap);
+
+  function applyFilter(list) {
+    if (!state.q) return list;
+    return list.filter((r) => {
+      const hay = (filterKeys.length ? filterKeys : Object.keys(r))
+        .map((k) => String(r?.[k] ?? "").toLowerCase())
+        .join(" ");
+      return hay.includes(state.q);
+    });
+  }
+
+  function applySort(list) {
+    if (!state.sortKey) return list;
+    const dir = state.sortDir === "asc" ? 1 : -1;
+    const key = state.sortKey;
+
+    return [...list].sort((a, b) => {
+      const va = a?.[key];
+      const vb = b?.[key];
+      const na = Number(va);
+      const nb = Number(vb);
+
+      if (!Number.isNaN(na) && !Number.isNaN(nb)) return (na - nb) * dir;
+      return String(va ?? "").localeCompare(String(vb ?? ""), "pt-BR") * dir;
+    });
+  }
+
+  function paint() {
+    const filtered = applyFilter(rows);
+    const finalRows = applySort(filtered);
+
+    tbody.innerHTML = "";
+
+    if (!finalRows.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = columns.length;
+      td.className = "muted";
+      td.style.padding = "14px";
+      td.textContent = emptyText;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    finalRows.forEach((r) => {
+      const tr = document.createElement("tr");
+      columns.forEach((c) => {
+        const td = document.createElement("td");
+        const raw = r?.[c.key];
+
+        if (c.render) {
+          td.innerHTML = c.render(raw, r) ?? "";
+        } else {
+          td.textContent = raw == null ? "" : String(raw);
+        }
+
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  paint();
+}
+
+/* ===== fim do ITEM 2 ===== */
+
 function routeNameFromHash() {
   const h = (window.location.hash || "").trim();
   // #/products
@@ -110,7 +270,7 @@ function routeNameFromHash() {
 function showPage(name) {
   // pages
   document.querySelectorAll(".page").forEach((p) => {
-    p.style.display = (p.dataset.page === name) ? "block" : "none";
+    p.style.display = p.dataset.page === name ? "block" : "none";
   });
 
   // nav active
@@ -168,7 +328,10 @@ async function onCreateProduct() {
       name: byId("pName").value,
       unit: byId("pUnit").value,
     };
-    const data = await fetchJson("/products", { method: "POST", body: JSON.stringify(payload) });
+    const data = await fetchJson("/products", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
     setOut("productOut", data, "ok");
   } catch (e) {
     setOut("productOut", { error: e.message, data: e.data }, "err");
@@ -193,13 +356,18 @@ async function onCreateMovement() {
     const quantity = parseNumber(byId("mQty").value);
     const note = (byId("mNote").value || "").trim();
 
-    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
-    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("quantity inválida");
+    if (!Number.isFinite(product_id) || product_id <= 0)
+      throw new Error("product_id inválido");
+    if (!Number.isFinite(quantity) || quantity <= 0)
+      throw new Error("quantity inválida");
 
     const payload = { product_id, type, quantity };
     if (note) payload.note = note;
 
-    const data = await fetchJson("/stock/movements", { method: "POST", body: JSON.stringify(payload) });
+    const data = await fetchJson("/stock/movements", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
     setOut("movementOut", data, "ok");
   } catch (e) {
     setOut("movementOut", { error: e.message, data: e.data }, "err");
@@ -220,7 +388,8 @@ async function onStatement() {
   setOut("statementOut", "Carregando /stock/statement...", "ok");
   try {
     const product_id = parseInt(byId("sProductId").value, 10);
-    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
+    if (!Number.isFinite(product_id) || product_id <= 0)
+      throw new Error("product_id inválido");
 
     const from = (byId("sFrom").value || "").trim();
     const to = (byId("sTo").value || "").trim();
@@ -275,3 +444,4 @@ document.addEventListener("DOMContentLoaded", () => {
   // default route
   if (!window.location.hash) window.location.hash = "#/config";
 });
+JS
