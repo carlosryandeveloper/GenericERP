@@ -1,3 +1,4 @@
+cat > app/main.py <<'PY'
 from datetime import date, datetime, time, timedelta
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -143,31 +144,29 @@ def stock_statement(
     to_date: date | None = None,
     session: Session = Depends(get_session),
 ):
-    # Confere se o produto existe (extrato sem produto é fofoca)
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="product not found")
 
     start_dt = datetime.combine(from_date, time.min) if from_date else None
-    end_dt = (
-        datetime.combine(to_date + timedelta(days=1), time.min) if to_date else None
-    )  # exclusivo (menor que)
+    end_dt = datetime.combine(to_date + timedelta(days=1), time.min) if to_date else None
 
-    signed_qty = case(
+    signed_qty_expr = case(
         (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
         (StockMovement.type == "OUT", -StockMovement.quantity),
         else_=0,
     )
 
-    # Saldo antes do período (pra começar o extrato com base correta)
-    stmt_start = select(func.coalesce(func.sum(signed_qty), 0)).where(
+    # saldo anterior ao período
+    stmt_start = select(func.coalesce(func.sum(signed_qty_expr), 0)).where(
         StockMovement.product_id == product_id
     )
     if start_dt:
         stmt_start = stmt_start.where(StockMovement.created_at < start_dt)
+
     starting_balance = float(session.exec(stmt_start).one())
 
-    # Movimentações dentro do período
+    # movimentos no período
     stmt = select(StockMovement).where(StockMovement.product_id == product_id)
     if start_dt:
         stmt = stmt.where(StockMovement.created_at >= start_dt)
@@ -210,3 +209,4 @@ def stock_statement(
         ending_balance=balance,
         lines=lines,
     )
+PY
