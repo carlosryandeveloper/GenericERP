@@ -1,4 +1,3 @@
-<!-- frontend/index.html -->
 <!doctype html>
 <html lang="pt-br">
 <head>
@@ -105,6 +104,7 @@
           </div>
         </div>
 
+        <!-- LISTA RÁPIDA (agora em tabela) -->
         <div class="card">
           <div class="cardH split">
             <div>
@@ -114,24 +114,22 @@
             <button class="btn ghost" id="btnLoadProductsMin">Carregar</button>
           </div>
           <div class="cardB">
-            <!-- ALTERAÇÃO: agora é tabela -->
+            <pre id="productsMinMsg" class="output empty">Sem ação ainda.</pre>
             <div id="productsMinTable"></div>
-
-            <!-- debug escondido: só aparece se der erro -->
-            <pre id="productsMinOut" class="output empty" style="display:none">Sem ação ainda.</pre>
           </div>
         </div>
 
-        <!-- NOVO: TABELA COMPLETA -->
+        <!-- TABELA COMPLETA -->
         <div class="card">
           <div class="cardH split">
             <div>
               <h2>Produtos (tabela)</h2>
-              <p class="muted">Lista completa com filtro e ordenação.</p>
+              <p class="muted">Lista completa com filtro e ordenação. Endpoint: <span class="kbd">/products</span></p>
             </div>
             <button class="btn ghost" id="btnLoadProductsTable">Carregar tabela</button>
           </div>
           <div class="cardB">
+            <pre id="productsTableMsg" class="output empty">Sem ação ainda.</pre>
             <div id="productsTable"></div>
           </div>
         </div>
@@ -183,7 +181,7 @@
           <div class="cardH split">
             <div>
               <h2>Saldo</h2>
-              <p class="muted">Retorna somente: <span class="kbd">product_id</span>, <span class="kbd">name</span>, <span class="kbd">unit</span>, <span class="kbd">balance</span>.</p>
+              <p class="muted">Retorna: <span class="kbd">product_id</span>, <span class="kbd">name</span>, <span class="kbd">unit</span>, <span class="kbd">balance</span>.</p>
             </div>
             <button class="btn ghost" id="btnLoadBalance">Carregar saldo</button>
           </div>
