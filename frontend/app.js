@@ -1,4 +1,3 @@
-// frontend/app.js
 const byId = (id) => document.getElementById(id);
 
 const FALLBACK_LOCAL = "http://localhost:8000";
@@ -6,7 +5,7 @@ const LS_API_BASE = "genericerp.apiBase";
 
 const ROUTES = {
   config: { title: "Configuração", desc: "Defina a API Base e valide a conexão." },
-  products: { title: "Produtos", desc: "Crie produtos e consulte lista rápida." },
+  products: { title: "Produtos", desc: "Crie produtos e consulte listas em tabela." },
   movements: { title: "Movimentações", desc: "Lance IN/OUT/ADJUST e veja validações." },
   balance: { title: "Saldo", desc: "Saldo por produto (id, nome, unidade, saldo)." },
   statement: { title: "Extrato", desc: "Extrato do produto com saldo acumulado." },
@@ -15,9 +14,7 @@ const ROUTES = {
 function guessApiBase() {
   // Ex.: https://<nome>-5173.app.github.dev -> https://<nome>-8000.app.github.dev
   const raw = window.location.origin;
-  if (raw.includes(".app.github.dev")) {
-    return raw.replace(/-\d+\./, "-8000.");
-  }
+  if (raw.includes(".app.github.dev")) return raw.replace(/-\d+\./, "-8000.");
   return FALLBACK_LOCAL;
 }
 
@@ -38,15 +35,14 @@ function setApiPill(kind, text) {
 }
 
 function pretty(v) {
-  try {
-    return typeof v === "string" ? v : JSON.stringify(v, null, 2);
-  } catch {
-    return String(v);
-  }
+  try { return typeof v === "string" ? v : JSON.stringify(v, null, 2); }
+  catch { return String(v); }
 }
 
 function setOut(elId, value, kind = "ok") {
   const el = byId(elId);
+  if (!el) return;
+
   el.classList.remove("empty", "ok", "err");
   if (value === null || value === undefined || value === "") {
     el.textContent = "Sem dados.";
@@ -79,16 +75,11 @@ async function fetchJson(path, opts = {}) {
 
     const text = await res.text();
     let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
-    }
+    try { data = text ? JSON.parse(text) : null; }
+    catch { data = { raw: text }; }
 
     if (!res.ok) {
-      const msg = data?.detail
-        ? `${res.status} ${data.detail}`
-        : `${res.status} ${res.statusText}`;
+      const msg = data?.detail ? `${res.status} ${data.detail}` : `${res.status} ${res.statusText}`;
       const e = new Error(msg);
       e.status = res.status;
       e.data = data;
@@ -107,16 +98,14 @@ function parseNumber(v) {
 }
 
 /* =========================================================
-   ITEM 2: helpers + renderização em tabela
+   TABELAS: helpers + render
    ========================================================= */
 
 const fmtDateTime = (iso) => {
   if (!iso) return "";
   try {
-    return new Intl.DateTimeFormat("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    }).format(new Date(iso));
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" })
+      .format(new Date(iso));
   } catch {
     return String(iso);
   }
@@ -131,11 +120,7 @@ const fmtNumber = (n) => {
 function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterKeys = [] }) {
   if (!mountEl) return;
 
-  let state = {
-    q: "",
-    sortKey: null,
-    sortDir: "asc",
-  };
+  let state = { q: "", sortKey: null, sortDir: "asc" };
 
   const wrap = document.createElement("div");
 
@@ -194,9 +179,8 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
   function applyFilter(list) {
     if (!state.q) return list;
     return list.filter((r) => {
-      const hay = (filterKeys.length ? filterKeys : Object.keys(r))
-        .map((k) => String(r?.[k] ?? "").toLowerCase())
-        .join(" ");
+      const keys = filterKeys.length ? filterKeys : Object.keys(r || {});
+      const hay = keys.map((k) => String(r?.[k] ?? "").toLowerCase()).join(" ");
       return hay.includes(state.q);
     });
   }
@@ -241,11 +225,10 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
         const td = document.createElement("td");
         const raw = r?.[c.key];
 
-        if (c.render) {
-          td.innerHTML = c.render(raw, r) ?? "";
-        } else {
-          td.textContent = raw == null ? "" : String(raw);
-        }
+        if (c.className) td.className = c.className;
+
+        if (c.render) td.innerHTML = c.render(raw, r) ?? "";
+        else td.textContent = raw == null ? "" : String(raw);
 
         tr.appendChild(td);
       });
@@ -256,7 +239,7 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
   paint();
 }
 
-/* ===== fim ITEM 2 ===== */
+/* ========================================================= */
 
 function routeNameFromHash() {
   const h = (window.location.hash || "").trim();
@@ -267,7 +250,7 @@ function routeNameFromHash() {
 
 function showPage(name) {
   document.querySelectorAll(".page").forEach((p) => {
-    p.style.display = p.dataset.page === name ? "block" : "none";
+    p.style.display = (p.dataset.page === name) ? "block" : "none";
   });
 
   document.querySelectorAll(".navLink").forEach((a) => {
@@ -323,43 +306,67 @@ async function onCreateProduct() {
       name: byId("pName").value,
       unit: byId("pUnit").value,
     };
-    const data = await fetchJson("/products", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const data = await fetchJson("/products", { method: "POST", body: JSON.stringify(payload) });
     setOut("productOut", data, "ok");
   } catch (e) {
     setOut("productOut", { error: e.message, data: e.data }, "err");
   }
 }
 
-/* ALTERAÇÃO: products/min agora renderiza tabela */
+/* ✅ Lista rápida agora vira tabela */
 async function onProductsMin() {
   const mount = byId("productsMinTable");
-  const debug = byId("productsMinOut");
-
-  if (debug) debug.style.display = "none";
-  if (mount) mount.innerHTML = `<div class="muted" style="padding:10px">Carregando...</div>`;
+  setOut("productsMinMsg", "Carregando /products/min (tabela)...", "ok");
+  if (mount) mount.innerHTML = "";
 
   try {
-    const data = await fetchJson("/products/min");
+    const rows = await fetchJson("/products/min");
 
     renderTable({
       mountEl: mount,
+      rows,
       columns: [
-        { key: "id", title: "ID" },
-        { key: "name", title: "Produto" },
-        { key: "unit", title: "Unidade" },
+        { key: "id", title: "ID", className: "num", render: (v) => `<span class="mono">${v ?? ""}</span>` },
+        { key: "name", title: "Nome" },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${v ?? ""}</span>` },
       ],
-      rows: Array.isArray(data) ? data : [],
-      emptyText: "Nenhum produto encontrado.",
       filterKeys: ["id", "name", "unit"],
+      emptyText: "Nenhum produto ainda.",
     });
+
+    setOut("productsMinMsg", "Tabela carregada. Use o filtro acima 😉", "ok");
   } catch (e) {
-    if (debug) {
-      debug.style.display = "block";
-      setOut("productsMinOut", { error: e.message, data: e.data }, "err");
-    }
+    setOut("productsMinMsg", { error: e.message, data: e.data }, "err");
+    if (mount) mount.innerHTML = "";
+  }
+}
+
+/* ✅ Tabela completa de produtos */
+async function onProductsTable() {
+  const mount = byId("productsTable");
+  setOut("productsTableMsg", "Carregando /products (tabela completa)...", "ok");
+  if (mount) mount.innerHTML = "";
+
+  try {
+    const rows = await fetchJson("/products");
+
+    renderTable({
+      mountEl: mount,
+      rows,
+      columns: [
+        { key: "id", title: "ID", className: "num", render: (v) => `<span class="mono">${v ?? ""}</span>` },
+        { key: "sku", title: "SKU", render: (v) => `<span class="mono">${v ?? ""}</span>` },
+        { key: "name", title: "Nome" },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${v ?? ""}</span>` },
+        { key: "created_at", title: "Criado em", render: (v) => `<span class="mono">${fmtDateTime(v)}</span>` },
+      ],
+      filterKeys: ["id", "sku", "name", "unit", "created_at"],
+      emptyText: "Nenhum produto ainda.",
+    });
+
+    setOut("productsTableMsg", "Tabela completa carregada.", "ok");
+  } catch (e) {
+    setOut("productsTableMsg", { error: e.message, data: e.data }, "err");
     if (mount) mount.innerHTML = "";
   }
 }
@@ -372,18 +379,13 @@ async function onCreateMovement() {
     const quantity = parseNumber(byId("mQty").value);
     const note = (byId("mNote").value || "").trim();
 
-    if (!Number.isFinite(product_id) || product_id <= 0)
-      throw new Error("product_id inválido");
-    if (!Number.isFinite(quantity) || quantity <= 0)
-      throw new Error("quantity inválida");
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("quantity inválida");
 
     const payload = { product_id, type, quantity };
     if (note) payload.note = note;
 
-    const data = await fetchJson("/stock/movements", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const data = await fetchJson("/stock/movements", { method: "POST", body: JSON.stringify(payload) });
     setOut("movementOut", data, "ok");
   } catch (e) {
     setOut("movementOut", { error: e.message, data: e.data }, "err");
@@ -404,8 +406,7 @@ async function onStatement() {
   setOut("statementOut", "Carregando /stock/statement...", "ok");
   try {
     const product_id = parseInt(byId("sProductId").value, 10);
-    if (!Number.isFinite(product_id) || product_id <= 0)
-      throw new Error("product_id inválido");
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
 
     const from = (byId("sFrom").value || "").trim();
     const to = (byId("sTo").value || "").trim();
@@ -429,6 +430,7 @@ function wire() {
     saveApiBase(byId("apiBase").value);
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
   });
+
   byId("btnResetApi").addEventListener("click", () => {
     saveApiBase(guessApiBase());
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
@@ -438,7 +440,14 @@ function wire() {
   byId("btnRoutes").addEventListener("click", onRoutes);
 
   byId("btnCreateProduct").addEventListener("click", onCreateProduct);
+
+  // ✅ agora carrega tabela (não JSON)
   byId("btnLoadProductsMin").addEventListener("click", onProductsMin);
+
+  // ✅ tabela completa
+  const btnTbl = byId("btnLoadProductsTable");
+  if (btnTbl) btnTbl.addEventListener("click", onProductsTable);
+
   byId("btnCreateMovement").addEventListener("click", onCreateMovement);
   byId("btnLoadBalance").addEventListener("click", onBalance);
   byId("btnLoadStatement").addEventListener("click", onStatement);
