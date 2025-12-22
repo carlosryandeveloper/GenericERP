@@ -205,19 +205,19 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(0,0,0,.22);
   overflow:auto;
-  max-height: 280px;
+  max-height: 200px;
   white-space: pre;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 12.5px;
 }
 .output.empty{ color: rgba(255,255,255,.40); font-style: italic; }
-.output.ok{ border-color: rgba(34,197,94,.35); }
+.output.ok{ border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.08); }
 .output.err{ border-color: rgba(239,68,68,.35); }
 
 .kbd{
   display:inline-block;
-  padding:2px 6px;
-  border-radius: 8px;
+  padding:2px 8px;
+  border-radius: 999px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(255,255,255,.06);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -232,7 +232,7 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
 }
 
 /* =========================================================
-   TABELAS
+   TABELAS (BASE)
    ========================================================= */
 .table-toolbar{
   display:flex;
@@ -306,7 +306,6 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   background: rgba(34,211,238,.06);
 }
 
-/* deixa números mais “alinhados” visualmente */
 .erp-table td.num{
   text-align:right;
   font-variant-numeric: tabular-nums;
@@ -325,4 +324,54 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   .sideFoot{position:relative; left:auto; right:auto; bottom:auto}
   .grid3, .grid4{grid-template-columns: 1fr}
   .erp-table{min-width: 520px;}
+}
+
+/* =========================================================
+   TABELAS — POLIMENTO (NOVO)
+   ========================================================= */
+
+.table-toolbar{
+  gap:12px;
+  margin: 10px 0 12px;
+}
+
+.table-toolbar input{
+  width: min(520px, 100%);
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+}
+
+.table-wrap{
+  background: rgba(0,0,0,.14);
+  max-height: 360px;
+}
+
+.erp-table{
+  min-width: 560px;
+}
+
+.erp-table thead th{
+  z-index: 2;
+  letter-spacing: .2px;
+  background: rgba(10,15,26,.96);
+}
+
+.erp-table thead th::after{
+  content:"↕";
+  opacity:.25;
+  margin-left:8px;
+  font-size: 11px;
+}
+.erp-table thead th:hover{
+  background: rgba(124,58,237,.10);
+}
+.erp-table thead th:hover::after{
+  opacity:.6;
+}
+
+.erp-table tbody tr:nth-child(odd){
+  background: rgba(255,255,255,.015);
+}
+.erp-table tbody tr:hover{
+  background: rgba(124,58,237,.06);
 }
