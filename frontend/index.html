@@ -1,20 +1,19 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GenericERP • Front v0.1</title>
+  <title>GenericERP</title>
   <link rel="stylesheet" href="./style.css" />
-  <script defer src="./app.js"></script>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
         <div class="logo">GE</div>
-        <div class="brandTxt">
+        <div>
           <div class="brandName">GenericERP</div>
-          <div class="brandSub">Front v0.1</div>
+          <div class="brandSub">Demo (produtos + estoque)</div>
         </div>
       </div>
 
@@ -28,206 +27,210 @@
 
       <div class="sideFoot">
         <div class="pill" id="apiPill">
-          <span class="dot"></span>
-          <span class="txt" id="apiPillText">API: não testada</span>
-        </div>
-        <div class="hint">
-          URLs por tela: <span class="kbd">#/products</span>, <span class="kbd">#/balance</span>…
+          <div class="dot"></div>
+          <div class="txt" id="apiPillText">API: não testada</div>
         </div>
       </div>
     </aside>
 
     <main class="main">
-      <header class="top">
+      <div class="top">
         <div class="topTitle">
           <h1 id="pageTitle">Configuração</h1>
           <p id="pageDesc">Defina a API Base e valide a conexão.</p>
         </div>
-
-        <div class="topActions">
-          <button class="btn ghost" id="btnRoutes">Ver rotas</button>
-          <button class="btn primary" id="btnHealth">Testar /health</button>
-        </div>
-      </header>
+        <div class="topActions"></div>
+      </div>
 
       <!-- CONFIG -->
       <section class="page" data-page="config">
         <div class="card">
           <div class="cardH">
-            <div>
-              <h2>API Base</h2>
-              <p class="muted">Em Codespaces, detectamos automaticamente o host do backend (porta 8000).</p>
-            </div>
+            <h2>API Base</h2>
+            <p class="muted">Ex.: <span class="mono">http://localhost:8000</span> (local) ou Codespaces <span class="mono">https://....app.github.dev</span></p>
           </div>
-
           <div class="cardB">
-            <label>API Base</label>
-            <input class="input" id="apiBase" placeholder="http://localhost:8000" />
-            <div class="row">
-              <button class="btn" id="btnSaveApi">Salvar</button>
-              <button class="btn ghost" id="btnResetApi">Reset</button>
+            <div class="split">
+              <div class="field wide" style="flex:1">
+                <label for="apiBase">API Base</label>
+                <input id="apiBase" class="input" placeholder="http://localhost:8000" />
+              </div>
+              <div class="row">
+                <button class="btn primary" id="btnSaveApi">Salvar</button>
+                <button class="btn ghost" id="btnResetApi">Reset</button>
+                <button class="btn" id="btnHealth">/health</button>
+                <button class="btn" id="btnRoutes">/debug/routes</button>
+              </div>
             </div>
 
-            <pre id="cfgOut" class="output empty">Sem chamada ainda.</pre>
+            <pre id="cfgOut" class="output empty">Sem dados.</pre>
           </div>
         </div>
       </section>
 
       <!-- PRODUCTS -->
-      <section class="page" data-page="products">
+      <section class="page" data-page="products" style="display:none">
         <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Criar Produto</h2>
-              <p class="muted">SKU é único. Se repetir, a API responde 409.</p>
-            </div>
-            <button class="btn primary" id="btnCreateProduct">Criar produto</button>
+          <div class="cardH">
+            <h2>Criar produto</h2>
+            <p class="muted">SKU único (2..32 chars), nome e unidade.</p>
           </div>
-
           <div class="cardB">
             <div class="grid3">
               <div class="field">
-                <label>SKU</label>
-                <input class="input" id="pSku" placeholder="P-001" />
+                <label for="pSku">SKU</label>
+                <input id="pSku" class="input" placeholder="CANETA_AZUL" />
               </div>
               <div class="field wide">
-                <label>Nome</label>
-                <input class="input" id="pName" placeholder="Caneta Azul" />
+                <label for="pName">Nome</label>
+                <input id="pName" class="input" placeholder="Caneta azul" />
               </div>
               <div class="field">
-                <label>Unidade</label>
-                <input class="input" id="pUnit" placeholder="UN" />
+                <label for="pUnit">Unidade</label>
+                <input id="pUnit" class="input" placeholder="UN" />
               </div>
             </div>
 
-            <pre id="productOut" class="output empty">Sem ação ainda.</pre>
+            <div class="row">
+              <button class="btn primary" id="btnCreateProduct">Criar</button>
+            </div>
+
+            <pre id="productOut" class="output empty">Sem dados.</pre>
           </div>
         </div>
 
-        <!-- LISTA RÁPIDA (agora em tabela) -->
         <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Lista rápida</h2>
-              <p class="muted">Endpoint: <span class="kbd">/products/min</span> (id, name, unit). Bom pra dropdown.</p>
-            </div>
-            <button class="btn ghost" id="btnLoadProductsMin">Carregar</button>
+          <div class="cardH">
+            <h2>Lista rápida</h2>
+            <p class="muted">Endpoint: <span class="mono">/products/min</span> (id, name, unit). Bom pra dropdown.</p>
           </div>
           <div class="cardB">
-            <pre id="productsMinMsg" class="output empty">Sem ação ainda.</pre>
+            <div class="row" style="justify-content:flex-end">
+              <button class="btn" id="btnLoadProductsMin">Carregar</button>
+            </div>
+
+            <!-- ✅ Aqui nasce a tabela -->
             <div id="productsMinTable"></div>
+            <pre id="productsMinMsg" class="output empty">Sem dados.</pre>
           </div>
         </div>
 
-        <!-- TABELA COMPLETA -->
         <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Produtos (tabela)</h2>
-              <p class="muted">Lista completa com filtro e ordenação. Endpoint: <span class="kbd">/products</span></p>
-            </div>
-            <button class="btn ghost" id="btnLoadProductsTable">Carregar tabela</button>
+          <div class="cardH">
+            <h2>Produtos (completo)</h2>
+            <p class="muted">Endpoint: <span class="mono">/products</span> (tudo).</p>
           </div>
           <div class="cardB">
-            <pre id="productsTableMsg" class="output empty">Sem ação ainda.</pre>
+            <div class="row" style="justify-content:flex-end">
+              <button class="btn" id="btnLoadProductsTable">Carregar</button>
+            </div>
+
             <div id="productsTable"></div>
+            <pre id="productsTableMsg" class="output empty">Sem dados.</pre>
           </div>
         </div>
       </section>
 
       <!-- MOVEMENTS -->
-      <section class="page" data-page="movements">
+      <section class="page" data-page="movements" style="display:none">
         <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Criar Movimentação</h2>
-              <p class="muted">IN/OUT/ADJUST. OUT não deixa ficar negativo. ADJUST exige observação.</p>
-            </div>
-            <button class="btn primary" id="btnCreateMovement">Lançar</button>
+          <div class="cardH">
+            <h2>Movimentações</h2>
+            <p class="muted">Lance <span class="kbd">IN</span>, <span class="kbd">OUT</span>, <span class="kbd">ADJUST</span>. OUT não pode passar do saldo.</p>
           </div>
-
           <div class="cardB">
             <div class="grid4">
               <div class="field">
-                <label>ID do produto</label>
-                <input class="input" id="mProductId" placeholder="Ex: 1" />
+                <label for="mProductId">Product ID</label>
+                <input id="mProductId" class="input" placeholder="1" />
               </div>
+
               <div class="field">
-                <label>Tipo</label>
+                <label for="mType">Tipo</label>
                 <select id="mType">
-                  <option value="IN">IN (Entrada)</option>
-                  <option value="OUT">OUT (Saída)</option>
-                  <option value="ADJUST">ADJUST (Ajuste)</option>
+                  <option>IN</option>
+                  <option>OUT</option>
+                  <option>ADJUST</option>
                 </select>
               </div>
+
               <div class="field">
-                <label>Quantidade</label>
-                <input class="input" id="mQty" placeholder="Ex: 10" />
+                <label for="mQty">Quantidade</label>
+                <input id="mQty" class="input" placeholder="10" />
               </div>
+
               <div class="field wide">
-                <label>Observação</label>
-                <input class="input" id="mNote" placeholder="Obrigatória para ADJUST" />
+                <label for="mNote">Nota (obrigatória no ADJUST)</label>
+                <input id="mNote" class="input" placeholder="Ex.: ajuste por inventário" />
               </div>
             </div>
 
-            <pre id="movementOut" class="output empty">Sem ação ainda.</pre>
+            <div class="row">
+              <button class="btn primary" id="btnCreateMovement">Lançar</button>
+            </div>
+
+            <pre id="movementOut" class="output empty">Sem dados.</pre>
           </div>
         </div>
       </section>
 
       <!-- BALANCE -->
-      <section class="page" data-page="balance">
+      <section class="page" data-page="balance" style="display:none">
         <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Saldo</h2>
-              <p class="muted">Retorna: <span class="kbd">product_id</span>, <span class="kbd">name</span>, <span class="kbd">unit</span>, <span class="kbd">balance</span>.</p>
-            </div>
-            <button class="btn ghost" id="btnLoadBalance">Carregar saldo</button>
+          <div class="cardH">
+            <h2>Saldo</h2>
+            <p class="muted">Endpoint: <span class="mono">/stock/balance</span> (id, nome, unidade, saldo).</p>
           </div>
-
           <div class="cardB">
-            <pre id="balanceOut" class="output empty">Sem ação ainda.</pre>
+            <div class="row" style="justify-content:flex-end">
+              <button class="btn" id="btnLoadBalance">Carregar</button>
+            </div>
+
+            <!-- ✅ Aqui nasce a tabela -->
+            <div id="balanceTable"></div>
+            <pre id="balanceMsg" class="output empty">Sem dados.</pre>
           </div>
         </div>
       </section>
 
       <!-- STATEMENT -->
-      <section class="page" data-page="statement">
+      <section class="page" data-page="statement" style="display:none">
         <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Extrato</h2>
-              <p class="muted">Histórico auditável com saldo acumulado por linha.</p>
-            </div>
-            <button class="btn ghost" id="btnLoadStatement">Carregar extrato</button>
+          <div class="cardH">
+            <h2>Extrato</h2>
+            <p class="muted">Endpoint: <span class="mono">/stock/statement</span> com saldo acumulado.</p>
           </div>
-
           <div class="cardB">
             <div class="grid3">
               <div class="field">
-                <label>ID do produto</label>
-                <input class="input" id="sProductId" placeholder="Ex: 1" />
+                <label for="sProductId">Product ID</label>
+                <input id="sProductId" class="input" placeholder="1" />
               </div>
+
               <div class="field">
-                <label>De</label>
-                <input class="input" id="sFrom" placeholder="YYYY-MM-DD" />
+                <label for="sFrom">De (YYYY-MM-DD)</label>
+                <input id="sFrom" class="input" placeholder="2025-01-01" />
               </div>
+
               <div class="field">
-                <label>Até</label>
-                <input class="input" id="sTo" placeholder="YYYY-MM-DD" />
+                <label for="sTo">Até (YYYY-MM-DD)</label>
+                <input id="sTo" class="input" placeholder="2025-12-31" />
               </div>
             </div>
 
-            <pre id="statementOut" class="output empty">Sem ação ainda.</pre>
+            <div class="row">
+              <button class="btn" id="btnLoadStatement">Carregar</button>
+            </div>
+
+            <pre id="statementOut" class="output empty">Sem dados.</pre>
           </div>
         </div>
       </section>
 
-      <footer class="footer">
-        GenericERP • UI simples com rotas <span class="kbd">#/...</span> • sem framework
-      </footer>
+      <div class="footer">GenericERP • interface demo</div>
     </main>
   </div>
+
+  <script src="./app.js"></script>
 </body>
 </html>
