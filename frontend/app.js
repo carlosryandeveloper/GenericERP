@@ -5,14 +5,13 @@ const LS_API_BASE = "genericerp.apiBase";
 
 const ROUTES = {
   config: { title: "Configuração", desc: "Defina a API Base e valide a conexão." },
-  products: { title: "Produtos", desc: "Crie produtos e consulte listas em tabela." },
+  products: { title: "Produtos", desc: "Lista rápida em tabela." },
   movements: { title: "Movimentações", desc: "Lance IN/OUT/ADJUST e veja validações." },
-  balance: { title: "Saldo", desc: "Saldo por produto (id, nome, unidade, saldo)." },
+  balance: { title: "Saldo", desc: "Saldo por produto em tabela." },
   statement: { title: "Extrato", desc: "Extrato do produto com saldo acumulado." },
 };
 
 function guessApiBase() {
-  // Ex.: https://<nome>-5173.app.github.dev -> https://<nome>-8000.app.github.dev
   const raw = window.location.origin;
   if (raw.includes(".app.github.dev")) return raw.replace(/-\d+\./, "-8000.");
   return FALLBACK_LOCAL;
@@ -23,13 +22,15 @@ function normalizeBase(url) {
   if (!u) return "";
 
   if (!/^https?:\/\//i.test(u)) {
-    // Se for localhost, assume http por padrão (evita https://localhost quebrado)
     const lower = u.toLowerCase();
     const isLocal = lower.startsWith("localhost") || lower.startsWith("127.0.0.1");
     u = (isLocal ? "http://" : "https://") + u;
   }
-
   return u.replace(/\/+$/, "");
+}
+
+function apiBase() {
+  return normalizeBase(byId("apiBase")?.value || "");
 }
 
 function setApiPill(kind, text) {
@@ -62,10 +63,6 @@ function setOut(elId, value, kind = "ok") {
   el.classList.add(kind === "err" ? "err" : "ok");
 }
 
-function apiBase() {
-  return normalizeBase(byId("apiBase")?.value || "");
-}
-
 async function fetchJson(path, opts = {}) {
   const base = apiBase();
   if (!base) throw new Error("API Base vazia");
@@ -94,40 +91,27 @@ async function fetchJson(path, opts = {}) {
       e.data = data;
       throw e;
     }
-
     return data;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function parseNumber(v) {
-  const n = Number(String(v || "").replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
+/** tenta uma lista de endpoints e retorna o primeiro que funcionar */
+async function fetchAny(paths, opts) {
+  let lastErr = null;
+  for (const p of paths) {
+    try { return await fetchJson(p, opts); }
+    catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("Falha ao buscar dados");
 }
 
-/* =========================================================
-   Segurança básica: escapar HTML vindo do usuário
-   ========================================================= */
 function escapeHtml(v) {
   return String(v ?? "").replace(/[&<>"']/g, (m) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[m]));
 }
-
-/* =========================================================
-   TABELAS: helpers + render
-   ========================================================= */
-
-const fmtDateTime = (iso) => {
-  if (!iso) return "";
-  try {
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" })
-      .format(new Date(iso));
-  } catch {
-    return String(iso);
-  }
-};
 
 const fmtNumber = (n) => {
   const num = Number(n);
@@ -245,12 +229,8 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
 
         if (c.className) td.className = c.className;
 
-        if (c.render) {
-          // render retorna string (já escapada quando necessário)
-          td.innerHTML = c.render(raw, r) ?? "";
-        } else {
-          td.textContent = raw == null ? "" : String(raw);
-        }
+        if (c.render) td.innerHTML = c.render(raw, r) ?? "";
+        else td.textContent = raw == null ? "" : String(raw);
 
         tr.appendChild(td);
       });
@@ -260,8 +240,6 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
 
   paint();
 }
-
-/* ========================================================= */
 
 function routeNameFromHash() {
   const h = (window.location.hash || "").trim();
@@ -295,9 +273,10 @@ function loadApiBase() {
   byId("apiBase").value = v;
 }
 
-// --------------------
-// Handlers
-// --------------------
+/* ============================
+   Handlers (o que interessa)
+   ============================ */
+
 async function onHealth() {
   setOut("cfgOut", "Chamando /health ...", "ok");
   try {
@@ -320,29 +299,19 @@ async function onRoutes() {
   }
 }
 
-async function onCreateProduct() {
-  setOut("productOut", "Criando produto...", "ok");
-  try {
-    const payload = {
-      sku: byId("pSku").value,
-      name: byId("pName").value,
-      unit: byId("pUnit").value,
-    };
-    const data = await fetchJson("/products", { method: "POST", body: JSON.stringify(payload) });
-    setOut("productOut", data, "ok");
-  } catch (e) {
-    setOut("productOut", { error: e.message, data: e.data }, "err");
-  }
-}
-
-/* ✅ Lista rápida em tabela */
+/** ✅ Lista rápida em tabela (suporta /produtos/min e /products/min; nome/unidade ou name/unit) */
 async function onProductsMin() {
   const mount = byId("productsMinTable");
-  setOut("productsMinMsg", "Carregando /products/min (tabela)...", "ok");
+  setOut("productsMinMsg", "Carregando lista rápida (tabela)...", "ok");
   if (mount) mount.innerHTML = "";
 
   try {
-    const rows = await fetchJson("/products/min");
+    const rawRows = await fetchAny(["/products/min", "/produtos/min"]);
+    const rows = (rawRows || []).map(r => ({
+      id: r.id,
+      name: r.name ?? r.nome ?? "",
+      unit: r.unit ?? r.unidade ?? "",
+    }));
 
     renderTable({
       mountEl: mount,
@@ -363,65 +332,25 @@ async function onProductsMin() {
   }
 }
 
-/* ✅ Tabela completa de produtos */
-async function onProductsTable() {
-  const mount = byId("productsTable");
-  setOut("productsTableMsg", "Carregando /products (tabela completa)...", "ok");
-  if (mount) mount.innerHTML = "";
-
-  try {
-    const rows = await fetchJson("/products");
-
-    renderTable({
-      mountEl: mount,
-      rows,
-      columns: [
-        { key: "id", title: "ID", className: "num", render: (v) => `<span class="mono">${escapeHtml(v)}</span>` },
-        { key: "sku", title: "SKU", render: (v) => `<span class="mono">${escapeHtml(v)}</span>` },
-        { key: "name", title: "Nome", render: (v) => escapeHtml(v) },
-        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${escapeHtml(v)}</span>` },
-        { key: "created_at", title: "Criado em", render: (v) => `<span class="mono">${escapeHtml(fmtDateTime(v))}</span>` },
-      ],
-      filterKeys: ["id", "sku", "name", "unit", "created_at"],
-      emptyText: "Nenhum produto ainda.",
-    });
-
-    setOut("productsTableMsg", `Tabela completa carregada (${rows.length} registro(s)).`, "ok");
-  } catch (e) {
-    setOut("productsTableMsg", { error: e.message, data: e.data }, "err");
-    if (mount) mount.innerHTML = "";
-  }
-}
-
-async function onCreateMovement() {
-  setOut("movementOut", "Lançando movimentação...", "ok");
-  try {
-    const product_id = parseInt(byId("mProductId").value, 10);
-    const type = byId("mType").value;
-    const quantity = parseNumber(byId("mQty").value);
-    const note = (byId("mNote").value || "").trim();
-
-    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
-    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("quantity inválida");
-
-    const payload = { product_id, type, quantity };
-    if (note) payload.note = note;
-
-    const data = await fetchJson("/stock/movements", { method: "POST", body: JSON.stringify(payload) });
-    setOut("movementOut", data, "ok");
-  } catch (e) {
-    setOut("movementOut", { error: e.message, data: e.data }, "err");
-  }
-}
-
-/* ✅ Saldo em tabela */
+/** ✅ Saldo em tabela (tenta rotas e chaves comuns) */
 async function onBalance() {
   const mount = byId("balanceTable");
-  setOut("balanceMsg", "Carregando /stock/balance (tabela)...", "ok");
+  setOut("balanceMsg", "Carregando saldo (tabela)...", "ok");
   if (mount) mount.innerHTML = "";
 
   try {
-    const rows = await fetchJson("/stock/balance");
+    const rawRows = await fetchAny([
+      "/stock/balance",
+      "/estoque/saldo",
+      "/saldo",
+    ]);
+
+    const rows = (rawRows || []).map(r => ({
+      product_id: r.product_id ?? r.produto_id ?? r.id_produto ?? r.id,
+      name: r.name ?? r.nome ?? "",
+      unit: r.unit ?? r.unidade ?? "",
+      balance: r.balance ?? r.saldo ?? 0,
+    }));
 
     renderTable({
       mountEl: mount,
@@ -463,9 +392,10 @@ async function onStatement() {
   }
 }
 
-// --------------------
-// Boot
-// --------------------
+/* ============================
+   Boot
+   ============================ */
+
 function wire() {
   byId("btnSaveApi")?.addEventListener("click", () => {
     saveApiBase(byId("apiBase").value);
@@ -480,12 +410,7 @@ function wire() {
   byId("btnHealth")?.addEventListener("click", onHealth);
   byId("btnRoutes")?.addEventListener("click", onRoutes);
 
-  byId("btnCreateProduct")?.addEventListener("click", onCreateProduct);
   byId("btnLoadProductsMin")?.addEventListener("click", onProductsMin);
-
-  byId("btnLoadProductsTable")?.addEventListener("click", onProductsTable);
-
-  byId("btnCreateMovement")?.addEventListener("click", onCreateMovement);
   byId("btnLoadBalance")?.addEventListener("click", onBalance);
   byId("btnLoadStatement")?.addEventListener("click", onStatement);
 
