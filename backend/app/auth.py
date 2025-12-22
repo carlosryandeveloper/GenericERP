@@ -13,25 +13,35 @@ from sqlmodel import Session, select
 from .db import get_session
 from .models import User, PasswordReset
 
-# MVP: chave fixa (depois você joga em ENV)
+# MVP: chave fixa (depois vai pra ENV)
 SECRET_KEY = "CHANGE_ME_GENERICERP_DEV_SECRET"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24h
 
-# ✅ Troca importante:
-# bcrypt puro tem limite de 72 bytes na senha.
-# bcrypt_sha256 pré-hasheia e evita esse problema.
-pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
-
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
+def _normalize_password_for_bcrypt(password: str) -> str:
+    """
+    bcrypt só usa até 72 bytes.
+    Se passar disso, a gente pré-hasha em SHA-256 (hex, 64 chars) e segue.
+    """
+    pw_bytes = password.encode("utf-8")
+    if len(pw_bytes) <= 72:
+        return password
+    # pré-hash estável
+    return hashlib.sha256(pw_bytes).hexdigest()
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    p = _normalize_password_for_bcrypt(password)
+    return pwd_context.hash(p)
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+    p = _normalize_password_for_bcrypt(password)
+    return pwd_context.verify(p, password_hash)
 
 
 def create_access_token(user_id: int) -> str:
