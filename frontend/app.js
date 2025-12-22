@@ -21,13 +21,22 @@ function guessApiBase() {
 function normalizeBase(url) {
   let u = (url || "").trim();
   if (!u) return "";
-  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+
+  if (!/^https?:\/\//i.test(u)) {
+    // Se for localhost, assume http por padrão (evita https://localhost quebrado)
+    const lower = u.toLowerCase();
+    const isLocal = lower.startsWith("localhost") || lower.startsWith("127.0.0.1");
+    u = (isLocal ? "http://" : "https://") + u;
+  }
+
   return u.replace(/\/+$/, "");
 }
 
 function setApiPill(kind, text) {
   const pill = byId("apiPill");
   const t = byId("apiPillText");
+  if (!pill || !t) return;
+
   pill.classList.remove("ok", "err");
   if (kind === "ok") pill.classList.add("ok");
   if (kind === "err") pill.classList.add("err");
@@ -95,6 +104,15 @@ async function fetchJson(path, opts = {}) {
 function parseNumber(v) {
   const n = Number(String(v || "").replace(",", "."));
   return Number.isFinite(n) ? n : NaN;
+}
+
+/* =========================================================
+   Segurança básica: escapar HTML vindo do usuário
+   ========================================================= */
+function escapeHtml(v) {
+  return String(v ?? "").replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[m]));
 }
 
 /* =========================================================
@@ -227,8 +245,12 @@ function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterK
 
         if (c.className) td.className = c.className;
 
-        if (c.render) td.innerHTML = c.render(raw, r) ?? "";
-        else td.textContent = raw == null ? "" : String(raw);
+        if (c.render) {
+          // render retorna string (já escapada quando necessário)
+          td.innerHTML = c.render(raw, r) ?? "";
+        } else {
+          td.textContent = raw == null ? "" : String(raw);
+        }
 
         tr.appendChild(td);
       });
@@ -313,7 +335,7 @@ async function onCreateProduct() {
   }
 }
 
-/* ✅ Lista rápida agora vira tabela */
+/* ✅ Lista rápida em tabela */
 async function onProductsMin() {
   const mount = byId("productsMinTable");
   setOut("productsMinMsg", "Carregando /products/min (tabela)...", "ok");
@@ -326,15 +348,15 @@ async function onProductsMin() {
       mountEl: mount,
       rows,
       columns: [
-        { key: "id", title: "ID", className: "num", render: (v) => `<span class="mono">${v ?? ""}</span>` },
-        { key: "name", title: "Nome" },
-        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${v ?? ""}</span>` },
+        { key: "id", title: "ID", className: "num", render: (v) => `<span class="mono">${escapeHtml(v)}</span>` },
+        { key: "name", title: "Nome", render: (v) => escapeHtml(v) },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${escapeHtml(v)}</span>` },
       ],
       filterKeys: ["id", "name", "unit"],
       emptyText: "Nenhum produto ainda.",
     });
 
-    setOut("productsMinMsg", "Tabela carregada. Use o filtro acima 😉", "ok");
+    setOut("productsMinMsg", `Tabela carregada (${rows.length} registro(s)).`, "ok");
   } catch (e) {
     setOut("productsMinMsg", { error: e.message, data: e.data }, "err");
     if (mount) mount.innerHTML = "";
@@ -354,17 +376,17 @@ async function onProductsTable() {
       mountEl: mount,
       rows,
       columns: [
-        { key: "id", title: "ID", className: "num", render: (v) => `<span class="mono">${v ?? ""}</span>` },
-        { key: "sku", title: "SKU", render: (v) => `<span class="mono">${v ?? ""}</span>` },
-        { key: "name", title: "Nome" },
-        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${v ?? ""}</span>` },
-        { key: "created_at", title: "Criado em", render: (v) => `<span class="mono">${fmtDateTime(v)}</span>` },
+        { key: "id", title: "ID", className: "num", render: (v) => `<span class="mono">${escapeHtml(v)}</span>` },
+        { key: "sku", title: "SKU", render: (v) => `<span class="mono">${escapeHtml(v)}</span>` },
+        { key: "name", title: "Nome", render: (v) => escapeHtml(v) },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${escapeHtml(v)}</span>` },
+        { key: "created_at", title: "Criado em", render: (v) => `<span class="mono">${escapeHtml(fmtDateTime(v))}</span>` },
       ],
       filterKeys: ["id", "sku", "name", "unit", "created_at"],
       emptyText: "Nenhum produto ainda.",
     });
 
-    setOut("productsTableMsg", "Tabela completa carregada.", "ok");
+    setOut("productsTableMsg", `Tabela completa carregada (${rows.length} registro(s)).`, "ok");
   } catch (e) {
     setOut("productsTableMsg", { error: e.message, data: e.data }, "err");
     if (mount) mount.innerHTML = "";
@@ -392,13 +414,32 @@ async function onCreateMovement() {
   }
 }
 
+/* ✅ Saldo em tabela */
 async function onBalance() {
-  setOut("balanceOut", "Carregando /stock/balance...", "ok");
+  const mount = byId("balanceTable");
+  setOut("balanceMsg", "Carregando /stock/balance (tabela)...", "ok");
+  if (mount) mount.innerHTML = "";
+
   try {
-    const data = await fetchJson("/stock/balance");
-    setOut("balanceOut", data, "ok");
+    const rows = await fetchJson("/stock/balance");
+
+    renderTable({
+      mountEl: mount,
+      rows,
+      columns: [
+        { key: "product_id", title: "ID", className: "num", render: (v) => `<span class="mono">${escapeHtml(v)}</span>` },
+        { key: "name", title: "Produto", render: (v) => escapeHtml(v) },
+        { key: "unit", title: "Unidade", render: (v) => `<span class="kbd">${escapeHtml(v)}</span>` },
+        { key: "balance", title: "Saldo", className: "num", render: (v) => `<span class="mono">${escapeHtml(fmtNumber(v))}</span>` },
+      ],
+      filterKeys: ["product_id", "name", "unit", "balance"],
+      emptyText: "Sem saldo para exibir.",
+    });
+
+    setOut("balanceMsg", `Tabela carregada (${rows.length} registro(s)).`, "ok");
   } catch (e) {
-    setOut("balanceOut", { error: e.message, data: e.data }, "err");
+    setOut("balanceMsg", { error: e.message, data: e.data }, "err");
+    if (mount) mount.innerHTML = "";
   }
 }
 
@@ -426,31 +467,27 @@ async function onStatement() {
 // Boot
 // --------------------
 function wire() {
-  byId("btnSaveApi").addEventListener("click", () => {
+  byId("btnSaveApi")?.addEventListener("click", () => {
     saveApiBase(byId("apiBase").value);
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
   });
 
-  byId("btnResetApi").addEventListener("click", () => {
+  byId("btnResetApi")?.addEventListener("click", () => {
     saveApiBase(guessApiBase());
     setOut("cfgOut", { ok: true, apiBase: apiBase() }, "ok");
   });
 
-  byId("btnHealth").addEventListener("click", onHealth);
-  byId("btnRoutes").addEventListener("click", onRoutes);
+  byId("btnHealth")?.addEventListener("click", onHealth);
+  byId("btnRoutes")?.addEventListener("click", onRoutes);
 
-  byId("btnCreateProduct").addEventListener("click", onCreateProduct);
+  byId("btnCreateProduct")?.addEventListener("click", onCreateProduct);
+  byId("btnLoadProductsMin")?.addEventListener("click", onProductsMin);
 
-  // ✅ agora carrega tabela (não JSON)
-  byId("btnLoadProductsMin").addEventListener("click", onProductsMin);
+  byId("btnLoadProductsTable")?.addEventListener("click", onProductsTable);
 
-  // ✅ tabela completa
-  const btnTbl = byId("btnLoadProductsTable");
-  if (btnTbl) btnTbl.addEventListener("click", onProductsTable);
-
-  byId("btnCreateMovement").addEventListener("click", onCreateMovement);
-  byId("btnLoadBalance").addEventListener("click", onBalance);
-  byId("btnLoadStatement").addEventListener("click", onStatement);
+  byId("btnCreateMovement")?.addEventListener("click", onCreateMovement);
+  byId("btnLoadBalance")?.addEventListener("click", onBalance);
+  byId("btnLoadStatement")?.addEventListener("click", onStatement);
 
   const applyRoute = () => showPage(routeNameFromHash());
   window.addEventListener("hashchange", applyRoute);
