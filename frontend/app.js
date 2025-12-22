@@ -22,7 +22,7 @@ function normalizeBase(url) {
   let u = (url || "").trim();
   if (!u) return "";
 
-  // se usuário digitar "localhost:8000" sem protocolo, não inventa https
+  // se digitarem "localhost:8000" sem protocolo, não inventa https
   if (!/^https?:\/\//i.test(u)) {
     const lower = u.toLowerCase();
     const isLocal = lower.startsWith("localhost") || lower.startsWith("127.0.0.1");
@@ -48,8 +48,11 @@ function setApiPill(kind, text) {
 }
 
 function pretty(v) {
-  try { return typeof v === "string" ? v : JSON.stringify(v, null, 2); }
-  catch { return String(v); }
+  try {
+    return typeof v === "string" ? v : JSON.stringify(v, null, 2);
+  } catch {
+    return String(v);
+  }
 }
 
 function setOut(elId, value, kind = "ok") {
@@ -84,8 +87,11 @@ async function fetchJson(path, opts = {}) {
 
     const text = await res.text();
     let data = null;
-    try { data = text ? JSON.parse(text) : null; }
-    catch { data = { raw: text }; }
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
 
     if (!res.ok) {
       const msg = data?.detail ? `${res.status} ${data.detail}` : `${res.status} ${res.statusText}`;
@@ -319,7 +325,7 @@ async function onCreateProduct() {
   }
 }
 
-/* ✅ Lista rápida em TABELA */
+/* ✅ Lista rápida em tabela */
 async function onProductsMin() {
   const mount = byId("productsMinTable");
   setOut("productsMinMsg", "Carregando /products/min (tabela)...", "ok");
@@ -347,7 +353,7 @@ async function onProductsMin() {
   }
 }
 
-/* ✅ Tabela completa de produtos */
+/* ✅ Produtos completo em tabela */
 async function onProductsTable() {
   const mount = byId("productsTable");
   setOut("productsTableMsg", "Carregando /products (tabela completa)...", "ok");
@@ -398,7 +404,7 @@ async function onCreateMovement() {
   }
 }
 
-/* ✅ Saldo em TABELA */
+/* ✅ Saldo em tabela */
 async function onBalance() {
   const mount = byId("balanceTable");
   setOut("balanceMsg", "Carregando /stock/balance (tabela)...", "ok");
