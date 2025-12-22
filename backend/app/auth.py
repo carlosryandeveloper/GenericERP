@@ -18,7 +18,10 @@ SECRET_KEY = "CHANGE_ME_GENERICERP_DEV_SECRET"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24h
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# ✅ Troca importante:
+# bcrypt puro tem limite de 72 bytes na senha.
+# bcrypt_sha256 pré-hasheia e evita esse problema.
+pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -101,4 +104,3 @@ def consume_reset_token(session: Session, raw_token: str) -> User:
     session.commit()
 
     return user
-
