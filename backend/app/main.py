@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import date, datetime, time, timedelta
-import re
+from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,54 +9,61 @@ from sqlmodel import SQLModel, Session, select
 from sqlalchemy import func, case
 
 from .db import engine, get_session
-from .models import Product, StockMovement
+from .models import User, Product, StockMovement
+from .auth import (
+    get_current_user,
+    hash_password,
+    verify_password,
+    create_access_token,
+    create_reset_token,
+    consume_reset_token,
+)
 
 
-# ----------------------------
-# Regras / utilitários
-# ----------------------------
-ALLOWED_MV_TYPES = {"IN", "OUT", "ADJUST"}
-SKU_RE = re.compile(r"^[A-Z0-9][A-Z0-9._-]{1,31}$")  # 2..32 chars, sem espaço
+# =========================
+# Response models (SQLModel)
+# =========================
+class UserOut(SQLModel):
+    id: int
+    email: str
+    created_at: datetime
 
 
-def norm_str(s: str | None) -> str:
-    return (s or "").strip()
+class RegisterIn(SQLModel):
+    email: str
+    password: str
 
 
-def norm_sku(s: str | None) -> str:
-    return norm_str(s).upper()
+class LoginIn(SQLModel):
+    email: str
+    password: str
 
 
-def signed_qty_expr():
-    # regra de sinal: IN/ADJUST = +qty ; OUT = -qty
-    return case(
-        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
-        (StockMovement.type == "OUT", -StockMovement.quantity),
-        else_=0,
-    )
+class TokenOut(SQLModel):
+    access_token: str
+    token_type: str = "bearer"
 
 
-def get_balance(session: Session, product_id: int) -> float:
-    stmt = select(func.coalesce(func.sum(signed_qty_expr()), 0)).where(
-        StockMovement.product_id == product_id
-    )
-    return float(session.exec(stmt).one())
+class ForgotIn(SQLModel):
+    email: str
 
 
-# ----------------------------
-# DTOs de resposta
-# ----------------------------
+class ResetIn(SQLModel):
+    token: str
+    new_password: str
+
+
+class ProductMin(SQLModel):
+    id: int
+    name: str
+    unit: str
+
+
 class StockBalance(SQLModel):
     product_id: int
     name: str
     unit: str
     balance: float
-
-
-class ProductMini(SQLModel):
-    id: int
-    name: str
-    unit: str
 
 
 class StockStatementLine(SQLModel):
@@ -76,16 +85,12 @@ class StockStatement(SQLModel):
     lines: list[StockStatementLine]
 
 
-# ----------------------------
-# App
-# ----------------------------
-app = FastAPI(title="GenericERP API", version="0.1.0")
+app = FastAPI(title="GenericERP API", version="0.2.0")
 
-# CORS (Codespaces + local)
+# CORS liberado (DEV)
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.app\.github\.dev",
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -99,7 +104,7 @@ def on_startup():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "GenericERP API"}
+    return {"status": "ok", "service": "GenericERP API", "version": "0.2.0"}
 
 
 @app.get("/debug/routes")
@@ -107,30 +112,98 @@ def debug_routes():
     return sorted({getattr(r, "path", "") for r in app.routes})
 
 
-# ----------------------------
-# Produtos
-# ----------------------------
+# ===========
+# AUTH
+# ===========
+@app.post("/auth/register", response_model=UserOut)
+def register(payload: RegisterIn, session: Session = Depends(get_session)):
+    email = (payload.email or "").strip().lower()
+    password = payload.password or ""
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="invalid email")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="password must be >= 6 chars")
+
+    existing = session.exec(select(User).where(User.email == email)).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="email already exists")
+
+    user = User(email=email, password_hash=hash_password(password))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    return UserOut(id=user.id, email=user.email, created_at=user.created_at)
+
+
+@app.post("/auth/login", response_model=TokenOut)
+def login(payload: LoginIn, session: Session = Depends(get_session)):
+    email = (payload.email or "").strip().lower()
+    password = payload.password or ""
+
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user or not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="invalid credentials")
+
+    token = create_access_token(user.id)
+    return TokenOut(access_token=token)
+
+
+@app.get("/auth/me", response_model=UserOut)
+def me(current: User = Depends(get_current_user)):
+    return UserOut(id=current.id, email=current.email, created_at=current.created_at)
+
+
+@app.post("/auth/forgot-password")
+def forgot_password(payload: ForgotIn, session: Session = Depends(get_session)):
+    email = (payload.email or "").strip().lower()
+
+    # sempre responde "ok" pra não expor se existe ou não
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user:
+        return {"ok": True, "message": "if the email exists, a token was generated"}
+
+    token = create_reset_token(session, user, minutes_valid=30)
+
+    # DEV: retornando token no response (em prod você envia por email)
+    return {
+        "ok": True,
+        "message": "token generated (DEV). use /auth/reset-password",
+        "token": token,
+        "expires_minutes": 30,
+    }
+
+
+@app.post("/auth/reset-password")
+def reset_password(payload: ResetIn, session: Session = Depends(get_session)):
+    new_password = payload.new_password or ""
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="password must be >= 6 chars")
+
+    user = consume_reset_token(session, payload.token)
+    user.password_hash = hash_password(new_password)
+    session.add(user)
+    session.commit()
+    return {"ok": True}
+
+
+# ===========
+# PRODUCTS (protected)
+# ===========
 @app.post("/products", response_model=Product)
-def create_product(product: Product, session: Session = Depends(get_session)):
-    # normalização + validação
-    product.sku = norm_sku(getattr(product, "sku", None))
-    product.name = norm_str(getattr(product, "name", None))
-    product.unit = norm_str(getattr(product, "unit", None)).upper()
+def create_product(
+    product: Product,
+    session: Session = Depends(get_session),
+    current: User = Depends(get_current_user),
+):
+    # força dono
+    product.user_id = current.id
 
-    if not product.sku:
-        raise HTTPException(status_code=400, detail="sku is required")
-    if not SKU_RE.match(product.sku):
-        raise HTTPException(
-            status_code=400,
-            detail="invalid sku format (use A-Z, 0-9, . _ - ; 2..32 chars; no spaces)",
-        )
-    if not product.name:
-        raise HTTPException(status_code=400, detail="name is required")
-    if not product.unit:
-        raise HTTPException(status_code=400, detail="unit is required")
-
-    # Regra: SKU deve ser único (case-insensitive por normalização)
-    existing = session.exec(select(Product).where(Product.sku == product.sku)).first()
+    # regra: SKU único POR USUÁRIO
+    existing = session.exec(
+        select(Product).where(Product.user_id == current.id, Product.sku == product.sku)
+    ).first()
     if existing:
         raise HTTPException(status_code=409, detail="sku already exists")
 
@@ -141,55 +214,82 @@ def create_product(product: Product, session: Session = Depends(get_session)):
 
 
 @app.get("/products", response_model=list[Product])
-def list_products(session: Session = Depends(get_session)):
-    return session.exec(select(Product).order_by(Product.id.desc())).all()
+def list_products(
+    session: Session = Depends(get_session),
+    current: User = Depends(get_current_user),
+):
+    return session.exec(
+        select(Product)
+        .where(Product.user_id == current.id)
+        .order_by(Product.id.desc())
+    ).all()
 
 
-@app.get("/products/min", response_model=list[ProductMini])
-def list_products_min(session: Session = Depends(get_session)):
-    # filtra lixo (nome/unidade vazios) pra não poluir o front
-    stmt = (
+@app.get("/products/min", response_model=list[ProductMin])
+def list_products_min(
+    session: Session = Depends(get_session),
+    current: User = Depends(get_current_user),
+):
+    rows = session.exec(
         select(Product.id, Product.name, Product.unit)
-        .where(Product.name != "", Product.unit != "")
-        .order_by(Product.id)
+        .where(Product.user_id == current.id)
+        .order_by(Product.name.asc())
+    ).all()
+
+    # rows vem como tuplas
+    return [ProductMin(id=r[0], name=r[1], unit=r[2]) for r in rows]
+
+
+# ===========
+# STOCK MOVEMENTS (protected)
+# ===========
+def _signed_expr():
+    return case(
+        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
+        (StockMovement.type == "OUT", -StockMovement.quantity),
+        else_=0,
     )
-    rows = session.exec(stmt).all()
-    return [ProductMini(**dict(r._mapping)) for r in rows]
 
 
-# ----------------------------
-# Movimentações
-# ----------------------------
+def _current_balance(session: Session, user_id: int, product_id: int) -> float:
+    signed_qty = _signed_expr()
+    stmt = (
+        select(func.coalesce(func.sum(signed_qty), 0))
+        .where(StockMovement.user_id == user_id)
+        .where(StockMovement.product_id == product_id)
+    )
+    return float(session.exec(stmt).one())
+
+
 @app.post("/stock/movements", response_model=StockMovement)
-def create_movement(mv: StockMovement, session: Session = Depends(get_session)):
-    mv.type = norm_str(getattr(mv, "type", None)).upper()
-    if mv.type not in ALLOWED_MV_TYPES:
-        raise HTTPException(status_code=400, detail="type must be IN, OUT or ADJUST")
-
-    if mv.quantity is None:
-        raise HTTPException(status_code=400, detail="quantity is required")
-    if float(mv.quantity) <= 0:
+def create_movement(
+    mv: StockMovement,
+    session: Session = Depends(get_session),
+    current: User = Depends(get_current_user),
+):
+    if mv.quantity <= 0:
         raise HTTPException(status_code=400, detail="quantity must be > 0")
 
+    mv.type = (mv.type or "").strip().upper()
+
+    if mv.type not in ("IN", "OUT", "ADJUST"):
+        raise HTTPException(status_code=400, detail="type must be IN/OUT/ADJUST")
+
+    if mv.type == "ADJUST" and not (mv.note or "").strip():
+        raise HTTPException(status_code=400, detail="ADJUST requires note")
+
+    # valida produto do usuário
     product = session.get(Product, mv.product_id)
-    if not product:
+    if not product or product.user_id != current.id:
         raise HTTPException(status_code=404, detail="product not found")
 
-    # Regra: não permitir saída acima do saldo
+    # regra: OUT não pode deixar saldo negativo
     if mv.type == "OUT":
-        current = get_balance(session, mv.product_id)
-        if current < float(mv.quantity):
-            raise HTTPException(
-                status_code=409,
-                detail=f"insufficient stock (balance={current}, requested={float(mv.quantity)})",
-            )
+        bal = _current_balance(session, current.id, mv.product_id)
+        if (bal - float(mv.quantity)) < 0:
+            raise HTTPException(status_code=400, detail="insufficient balance")
 
-    # exigir justificativa em ajuste (se o campo existir)
-    if mv.type == "ADJUST":
-        note = norm_str(getattr(mv, "note", None))
-        if not note:
-            raise HTTPException(status_code=400, detail="note is required for ADJUST")
-
+    mv.user_id = current.id
     session.add(mv)
     session.commit()
     session.refresh(mv)
@@ -197,87 +297,82 @@ def create_movement(mv: StockMovement, session: Session = Depends(get_session)):
 
 
 @app.get("/stock/movements", response_model=list[StockMovement])
-def list_movements(session: Session = Depends(get_session)):
-    return session.exec(select(StockMovement).order_by(StockMovement.id.desc())).all()
+def list_movements(
+    session: Session = Depends(get_session),
+    current: User = Depends(get_current_user),
+):
+    return session.exec(
+        select(StockMovement)
+        .where(StockMovement.user_id == current.id)
+        .order_by(StockMovement.id.desc())
+    ).all()
 
 
-# ----------------------------
-# Saldo
-# ----------------------------
+# ===========
+# BALANCE (protected)
+# ===========
 @app.get("/stock/balance", response_model=list[StockBalance])
-def stock_balance(session: Session = Depends(get_session)):
+def stock_balance(
+    session: Session = Depends(get_session),
+    current: User = Depends(get_current_user),
+):
+    signed_qty = _signed_expr()
+
     stmt = (
         select(
             Product.id.label("product_id"),
             Product.name,
             Product.unit,
-            func.coalesce(func.sum(signed_qty_expr()), 0).label("balance"),
+            func.coalesce(func.sum(signed_qty), 0).label("balance"),
         )
-        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
-        .where(Product.name != "", Product.unit != "")
+        .outerjoin(
+            StockMovement,
+            (StockMovement.product_id == Product.id) & (StockMovement.user_id == current.id),
+        )
+        .where(Product.user_id == current.id)
         .group_by(Product.id, Product.name, Product.unit)
-        .order_by(Product.id)
+        .order_by(Product.name.asc())
     )
 
     rows = session.exec(stmt).all()
     return [StockBalance(**dict(r._mapping)) for r in rows]
 
 
-@app.get("/stock/balance/{product_id}", response_model=StockBalance)
-def stock_balance_by_product(product_id: int, session: Session = Depends(get_session)):
-    stmt = (
-        select(
-            Product.id.label("product_id"),
-            Product.name,
-            Product.unit,
-            func.coalesce(func.sum(signed_qty_expr()), 0).label("balance"),
-        )
-        .outerjoin(StockMovement, StockMovement.product_id == Product.id)
-        .where(Product.id == product_id)
-        .where(Product.name != "", Product.unit != "")
-        .group_by(Product.id, Product.name, Product.unit)
-    )
-
-    row = session.exec(stmt).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="product not found")
-
-    return StockBalance(**dict(row._mapping))
-
-
-# ----------------------------
-# Extrato
-# ----------------------------
+# ===========
+# STATEMENT (protected)
+# ===========
 @app.get("/stock/statement", response_model=StockStatement)
 def stock_statement(
     product_id: int,
     from_date: date | None = None,
     to_date: date | None = None,
     session: Session = Depends(get_session),
+    current: User = Depends(get_current_user),
 ):
     product = session.get(Product, product_id)
-    if not product:
+    if not product or product.user_id != current.id:
         raise HTTPException(status_code=404, detail="product not found")
-
-    if from_date and to_date and from_date > to_date:
-        raise HTTPException(status_code=400, detail="from_date cannot be after to_date")
 
     start_dt = datetime.combine(from_date, time.min) if from_date else None
     end_dt = datetime.combine(to_date + timedelta(days=1), time.min) if to_date else None
 
-    signed_expr = signed_qty_expr()
+    signed_qty_expr = _signed_expr()
 
-    # saldo anterior ao período
-    stmt_start = select(func.coalesce(func.sum(signed_expr), 0)).where(
-        StockMovement.product_id == product_id
+    # saldo anterior ao período (do usuário)
+    stmt_start = select(func.coalesce(func.sum(signed_qty_expr), 0)).where(
+        StockMovement.user_id == current.id,
+        StockMovement.product_id == product_id,
     )
     if start_dt:
         stmt_start = stmt_start.where(StockMovement.created_at < start_dt)
 
     starting_balance = float(session.exec(stmt_start).one())
 
-    # movimentos no período
-    stmt = select(StockMovement).where(StockMovement.product_id == product_id)
+    # movimentos no período (do usuário)
+    stmt = select(StockMovement).where(
+        StockMovement.user_id == current.id,
+        StockMovement.product_id == product_id,
+    )
     if start_dt:
         stmt = stmt.where(StockMovement.created_at >= start_dt)
     if end_dt:
