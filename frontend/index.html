@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>GenericERP</title>
 
-  <!-- cache-buster pra parar de sofrer com “não pegou a alteração” -->
-  <link rel="stylesheet" href="./style.css?v=7" />
+  <!-- evita request de favicon.ico (404 chato no console) -->
+  <link rel="icon" href="data:," />
+
+  <!-- cache-buster -->
+  <link rel="stylesheet" href="./style.css?v=9" />
 </head>
 
 <body>
@@ -74,7 +77,7 @@
               </div>
             </div>
 
-            <pre id="cfgOut" class="output empty">Sem dados.</pre>
+            <pre id="cfgOut" class="output empty">Dica: clique em /health para testar a conexão.</pre>
           </div>
         </div>
       </section>
@@ -87,7 +90,7 @@
         <div class="card">
           <div class="cardH">
             <h2>Criar produto</h2>
-            <p class="muted">SKU único, nome e unidade.</p>
+            <p class="muted">Preencha os campos (o texto cinza é só exemplo).</p>
           </div>
 
           <div class="cardB">
@@ -98,7 +101,7 @@
               </div>
 
               <div class="field wide">
-                <label for="pName">Nome</label>
+                <label for="pName">Nome do produto</label>
                 <input id="pName" class="input" placeholder="Caneta azul" />
               </div>
 
@@ -109,20 +112,20 @@
             </div>
 
             <div class="row">
-              <button class="btn primary" id="btnCreateProduct">Criar</button>
+              <button class="btn primary" id="btnCreateProduct">Criar produto</button>
             </div>
 
-            <pre id="productOut" class="output empty">Sem dados.</pre>
+            <pre id="productOut" class="output empty">Preencha os campos e clique em “Criar produto”.</pre>
           </div>
         </div>
 
         <!-- Lista rápida -->
         <div class="card">
           <div class="cardH">
-            <h2>Lista rápida</h2>
+            <h2>Produtos (lista rápida)</h2>
             <p class="muted">
-              Endpoint: <span class="mono">/products/min</span> (id, name, unit).
-              Bom pra dropdown.
+              Endpoint: <span class="mono">/products</span> (ID, SKU, Produto, Unidade).
+              Bom pra dropdown (e pra não esconder o SKU).
             </p>
           </div>
 
@@ -132,7 +135,7 @@
             </div>
 
             <div id="productsMinTable"></div>
-            <pre id="productsMinMsg" class="output empty">Sem dados.</pre>
+            <pre id="productsMinMsg" class="output notice empty">Clique em “Carregar” para listar.</pre>
           </div>
         </div>
 
@@ -141,7 +144,7 @@
           <div class="cardH">
             <h2>Produtos (completo)</h2>
             <p class="muted">
-              Endpoint: <span class="mono">/products</span> (tudo).
+              Endpoint: <span class="mono">/products</span> (detalhado).
             </p>
           </div>
 
@@ -151,7 +154,7 @@
             </div>
 
             <div id="productsTable"></div>
-            <pre id="productsTableMsg" class="output empty">Sem dados.</pre>
+            <pre id="productsTableMsg" class="output notice empty">Clique em “Carregar” para listar.</pre>
           </div>
         </div>
       </section>
@@ -169,10 +172,10 @@
             </p>
           </div>
 
-          <div class="cardB">
+        <div class="cardB">
             <div class="grid4">
               <div class="field">
-                <label for="mProductId">Product ID</label>
+                <label for="mProductId">ID do Produto</label>
                 <input id="mProductId" class="input" placeholder="1" />
               </div>
 
@@ -211,9 +214,9 @@
       <section class="page" data-page="balance" style="display:none">
         <div class="card">
           <div class="cardH">
-            <h2>Saldo</h2>
+            <h2>Saldo por produto</h2>
             <p class="muted">
-              Endpoint: <span class="mono">/stock/balance</span> (id, nome, unidade, saldo).
+              Endpoint: <span class="mono">/stock/balance</span> (ID, Produto, Unidade, Saldo).
             </p>
           </div>
 
@@ -223,7 +226,7 @@
             </div>
 
             <div id="balanceTable"></div>
-            <pre id="balanceMsg" class="output empty">Sem dados.</pre>
+            <pre id="balanceMsg" class="output notice empty">Clique em “Carregar” para ver os saldos.</pre>
           </div>
         </div>
       </section>
@@ -243,7 +246,7 @@
           <div class="cardB">
             <div class="grid3">
               <div class="field">
-                <label for="sProductId">Product ID</label>
+                <label for="sProductId">ID do Produto</label>
                 <input id="sProductId" class="input" placeholder="1" />
               </div>
 
@@ -271,7 +274,6 @@
     </main>
   </div>
 
-  <!-- cache-buster -->
-  <script src="./app.js?v=7"></script>
+  <script src="./app.js?v=9"></script>
 </body>
 </html>
