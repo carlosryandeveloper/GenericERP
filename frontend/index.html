@@ -6,8 +6,10 @@
   <title>GenericERP</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
   <div class="app">
+    <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="brand">
         <div class="logo">GE</div>
@@ -33,6 +35,7 @@
       </div>
     </aside>
 
+    <!-- MAIN -->
     <main class="main">
       <div class="top">
         <div class="topTitle">
@@ -41,19 +44,26 @@
         </div>
       </div>
 
-      <!-- CONFIG -->
+      <!-- =========================
+           CONFIG
+           ========================= -->
       <section class="page" data-page="config">
         <div class="card">
           <div class="cardH">
             <h2>API Base</h2>
-            <p class="muted">Ex.: <span class="mono">http://localhost:8000</span> (local) ou Codespaces <span class="mono">https://....app.github.dev</span></p>
+            <p class="muted">
+              Ex.: <span class="mono">http://localhost:8000</span> (local) ou
+              Codespaces <span class="mono">https://....app.github.dev</span>
+            </p>
           </div>
+
           <div class="cardB">
             <div class="split">
               <div class="field wide" style="flex:1">
                 <label for="apiBase">API Base</label>
                 <input id="apiBase" class="input" placeholder="http://localhost:8000" />
               </div>
+
               <div class="row">
                 <button class="btn primary" id="btnSaveApi">Salvar</button>
                 <button class="btn ghost" id="btnResetApi">Reset</button>
@@ -67,13 +77,53 @@
         </div>
       </section>
 
-      <!-- PRODUCTS -->
+      <!-- =========================
+           PRODUCTS
+           ========================= -->
       <section class="page" data-page="products" style="display:none">
+        <!-- Criar Produto -->
+        <div class="card">
+          <div class="cardH">
+            <h2>Criar produto</h2>
+            <p class="muted">SKU único, nome e unidade.</p>
+          </div>
+
+          <div class="cardB">
+            <div class="grid3">
+              <div class="field">
+                <label for="pSku">SKU</label>
+                <input id="pSku" class="input" placeholder="CANETA_AZUL" />
+              </div>
+
+              <div class="field wide">
+                <label for="pName">Nome</label>
+                <input id="pName" class="input" placeholder="Caneta azul" />
+              </div>
+
+              <div class="field">
+                <label for="pUnit">Unidade</label>
+                <input id="pUnit" class="input" placeholder="UN" />
+              </div>
+            </div>
+
+            <div class="row">
+              <button class="btn primary" id="btnCreateProduct">Criar</button>
+            </div>
+
+            <pre id="productOut" class="output empty">Sem dados.</pre>
+          </div>
+        </div>
+
+        <!-- Lista rápida -->
         <div class="card">
           <div class="cardH">
             <h2>Lista rápida</h2>
-            <p class="muted">Ponto final: <span class="mono">/produtos/min</span> ou <span class="mono">/products/min</span> (id, nome/name, unidade/unit).</p>
+            <p class="muted">
+              Endpoint: <span class="mono">/products/min</span> (id, name, unit).
+              Bom pra dropdown.
+            </p>
           </div>
+
           <div class="cardB">
             <div class="row" style="justify-content:flex-end">
               <button class="btn" id="btnLoadProductsMin">Carregar</button>
@@ -82,19 +132,92 @@
             <!-- ✅ A tabela nasce aqui -->
             <div id="productsMinTable"></div>
 
-            <!-- ✅ Mensagens/erros ficam aqui (pode ser pre mesmo) -->
+            <!-- ✅ Mensagens/erros ficam aqui -->
             <pre id="productsMinMsg" class="output empty">Sem dados.</pre>
+          </div>
+        </div>
+
+        <!-- Produtos completo -->
+        <div class="card">
+          <div class="cardH">
+            <h2>Produtos (completo)</h2>
+            <p class="muted">
+              Endpoint: <span class="mono">/products</span> (tudo).
+            </p>
+          </div>
+
+          <div class="cardB">
+            <div class="row" style="justify-content:flex-end">
+              <button class="btn" id="btnLoadProductsTable">Carregar</button>
+            </div>
+
+            <div id="productsTable"></div>
+            <pre id="productsTableMsg" class="output empty">Sem dados.</pre>
           </div>
         </div>
       </section>
 
-      <!-- BALANCE -->
+      <!-- =========================
+           MOVEMENTS
+           ========================= -->
+      <section class="page" data-page="movements" style="display:none">
+        <div class="card">
+          <div class="cardH">
+            <h2>Movimentações</h2>
+            <p class="muted">
+              Lance <span class="kbd">IN</span>, <span class="kbd">OUT</span>, <span class="kbd">ADJUST</span>.
+              OUT não pode passar do saldo.
+            </p>
+          </div>
+
+          <div class="cardB">
+            <div class="grid4">
+              <div class="field">
+                <label for="mProductId">Product ID</label>
+                <input id="mProductId" class="input" placeholder="1" />
+              </div>
+
+              <div class="field">
+                <label for="mType">Tipo</label>
+                <select id="mType">
+                  <option>IN</option>
+                  <option>OUT</option>
+                  <option>ADJUST</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="mQty">Quantidade</label>
+                <input id="mQty" class="input" placeholder="10" />
+              </div>
+
+              <div class="field wide">
+                <label for="mNote">Nota (obrigatória no ADJUST)</label>
+                <input id="mNote" class="input" placeholder="Ex.: ajuste por inventário" />
+              </div>
+            </div>
+
+            <div class="row">
+              <button class="btn primary" id="btnCreateMovement">Lançar</button>
+            </div>
+
+            <pre id="movementOut" class="output empty">Sem dados.</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================
+           BALANCE
+           ========================= -->
       <section class="page" data-page="balance" style="display:none">
         <div class="card">
           <div class="cardH">
             <h2>Saldo</h2>
-            <p class="muted">Ponto final: <span class="mono">/stock/balance</span> (id/nome/unidade/saldo).</p>
+            <p class="muted">
+              Endpoint: <span class="mono">/stock/balance</span> (id, nome, unidade, saldo).
+            </p>
           </div>
+
           <div class="cardB">
             <div class="row" style="justify-content:flex-end">
               <button class="btn" id="btnLoadBalance">Carregar</button>
@@ -103,29 +226,36 @@
             <!-- ✅ A tabela nasce aqui -->
             <div id="balanceTable"></div>
 
-            <!-- ✅ Mensagens/erros -->
+            <!-- ✅ Mensagens/erros ficam aqui -->
             <pre id="balanceMsg" class="output empty">Sem dados.</pre>
           </div>
         </div>
       </section>
 
-      <!-- STATEMENT (deixa como JSON por enquanto, depois a gente tabela também) -->
+      <!-- =========================
+           STATEMENT
+           ========================= -->
       <section class="page" data-page="statement" style="display:none">
         <div class="card">
           <div class="cardH">
             <h2>Extrato</h2>
-            <p class="muted">Endpoint: <span class="mono">/stock/statement</span></p>
+            <p class="muted">
+              Endpoint: <span class="mono">/stock/statement</span> com saldo acumulado.
+            </p>
           </div>
+
           <div class="cardB">
             <div class="grid3">
               <div class="field">
                 <label for="sProductId">Product ID</label>
                 <input id="sProductId" class="input" placeholder="1" />
               </div>
+
               <div class="field">
                 <label for="sFrom">De (YYYY-MM-DD)</label>
                 <input id="sFrom" class="input" placeholder="2025-01-01" />
               </div>
+
               <div class="field">
                 <label for="sTo">Até (YYYY-MM-DD)</label>
                 <input id="sTo" class="input" placeholder="2025-12-31" />
@@ -145,6 +275,7 @@
     </main>
   </div>
 
+  <!-- dica anti-cache (opcional): app.js?v=2 -->
   <script src="./app.js"></script>
 </body>
 </html>
