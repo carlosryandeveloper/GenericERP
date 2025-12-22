@@ -45,7 +45,6 @@ def get_balance(session: Session, product_id: int) -> float:
 # DTOs de resposta
 # ----------------------------
 class StockBalance(SQLModel):
-    # Retorno "limpo" pro front: id + nome + unidade + saldo
     product_id: int
     name: str
     unit: str
@@ -53,7 +52,6 @@ class StockBalance(SQLModel):
 
 
 class ProductMini(SQLModel):
-    # Pra dropdown / listas simples
     id: int
     name: str
     unit: str
@@ -149,7 +147,7 @@ def list_products(session: Session = Depends(get_session)):
 
 @app.get("/products/min", response_model=list[ProductMini])
 def list_products_min(session: Session = Depends(get_session)):
-    # filtra lixo antigo (nome/unidade vazios) pra não poluir o front
+    # filtra lixo (nome/unidade vazios) pra não poluir o front
     stmt = (
         select(Product.id, Product.name, Product.unit)
         .where(Product.name != "", Product.unit != "")
@@ -164,18 +162,15 @@ def list_products_min(session: Session = Depends(get_session)):
 # ----------------------------
 @app.post("/stock/movements", response_model=StockMovement)
 def create_movement(mv: StockMovement, session: Session = Depends(get_session)):
-    # valida tipo
     mv.type = norm_str(getattr(mv, "type", None)).upper()
     if mv.type not in ALLOWED_MV_TYPES:
         raise HTTPException(status_code=400, detail="type must be IN, OUT or ADJUST")
 
-    # valida quantidade
     if mv.quantity is None:
         raise HTTPException(status_code=400, detail="quantity is required")
     if float(mv.quantity) <= 0:
         raise HTTPException(status_code=400, detail="quantity must be > 0")
 
-    # valida produto
     product = session.get(Product, mv.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="product not found")
@@ -211,8 +206,6 @@ def list_movements(session: Session = Depends(get_session)):
 # ----------------------------
 @app.get("/stock/balance", response_model=list[StockBalance])
 def stock_balance(session: Session = Depends(get_session)):
-    # Retorna o que você pediu: id + nome + unidade + saldo (sem sku)
-    # E filtra dados velhos/bagunçados (nome/unidade vazios)
     stmt = (
         select(
             Product.id.label("product_id"),
@@ -265,6 +258,9 @@ def stock_statement(
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="product not found")
+
+    if from_date and to_date and from_date > to_date:
+        raise HTTPException(status_code=400, detail="from_date cannot be after to_date")
 
     start_dt = datetime.combine(from_date, time.min) if from_date else None
     end_dt = datetime.combine(to_date + timedelta(days=1), time.min) if to_date else None
