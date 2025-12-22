@@ -1,7 +1,7 @@
-from sqlmodel import create_engine, Session
-from typing import Generator
+from sqlmodel import Session, create_engine
 
-DATABASE_URL = "sqlite:///./genericerp.db"
+# SQLite simples pro MVP
+DATABASE_URL = "sqlite:///./dev.db"
 
 engine = create_engine(
     DATABASE_URL,
@@ -9,7 +9,6 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
-
-def get_session() -> Generator[Session, None, None]:
+def get_session():
     with Session(engine) as session:
         yield session
