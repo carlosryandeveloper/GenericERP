@@ -345,17 +345,14 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
 
 /* ===== v0.3 UI polish (FIX) ===== */
 
-/* Em auth-mode, remove a coluna fantasma da sidebar */
 body.auth-mode .app{
   grid-template-columns: 1fr;
 }
 
-/* Sidebar some totalmente no auth */
 body.auth-mode .sidebar{
   display:none !important;
 }
 
-/* Main ocupa tudo e centraliza */
 body.auth-mode .main{
   grid-column: 1 / -1;
   width: 100%;
@@ -364,45 +361,93 @@ body.auth-mode .main{
   padding: 22px 18px 40px;
 }
 
-/* Header centralizado no auth */
 body.auth-mode .top{
   justify-content: center;
   text-align: center;
 }
 
-/* Card do auth central e com largura estável */
 body.auth-mode .authCard{
   width: 100%;
   max-width: 920px;
   margin: 0 auto;
 }
 
-/* ESSENCIAL: evita inputs vazando por min-width no auth */
 body.auth-mode .authCard .field,
 body.auth-mode .authCard .field.wide{
   min-width: 0;
 }
 
-/* Grid mais "produto" no auth */
 body.auth-mode .authCard .grid3{
   grid-template-columns: 1fr 1fr 140px;
 }
 
-/* Mobile: empilha */
 @media (max-width: 900px){
   body.auth-mode .authCard .grid3{
     grid-template-columns: 1fr;
   }
 }
 
-/* Output mais legível */
 .output{
   white-space: pre-wrap;
   word-break: break-word;
 }
 .output.empty{ opacity: .75; }
 
-/* Esconde status de API e rodapé da sidebar (produção) */
 .pill, .sideFoot{
   display:none !important;
+}
+
+/* ===== NOVO: Logo ao lado dos campos do Login ===== */
+.loginSplit{
+  display:grid;
+  grid-template-columns: 360px 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.loginBrandPane{
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  border-radius: var(--r);
+  padding: 16px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap: 10px;
+  overflow:hidden;
+}
+
+.loginBrandImg{
+  width: 100%;
+  height: auto;
+  display:block;
+  opacity: .96;
+  filter: saturate(1.05) contrast(1.05);
+}
+
+.loginBrandHint{
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.loginFormPane{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+/* Evita “vazamento” de min-width no auth */
+body.auth-mode .loginSplit .field,
+body.auth-mode .loginSplit .field.wide{
+  min-width: 0;
+}
+
+@media (max-width: 900px){
+  .loginSplit{
+    grid-template-columns: 1fr;
+  }
+  .loginBrandImg{
+    max-width: 560px;
+  }
 }
