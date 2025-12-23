@@ -342,3 +342,36 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   .grid3, .grid4{grid-template-columns: 1fr}
   .erp-table{min-width: 620px;}
 }
+
+/* ===== v0.3 UI polish ===== */
+
+.navSep { height: 1px; opacity: .15; margin: 10px 0; background: currentColor; }
+
+.row.wrap { flex-wrap: wrap; align-items: center; }
+
+.authCard { max-width: 920px; margin: 0 auto; }
+
+.output { white-space: pre-wrap; word-break: break-word; }
+.output.empty { opacity: .7; }
+
+body.auth-mode .sidebar {
+  display: none;
+}
+
+body.auth-mode .main {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+body.auth-mode .top {
+  justify-content: center;
+  text-align: center;
+}
+
+body.auth-mode .footer {
+  opacity: .65;
+}
+
