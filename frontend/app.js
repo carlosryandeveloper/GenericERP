@@ -64,12 +64,10 @@ function normalizeBase(url) {
 }
 
 function guessApiBase() {
-  // Codespaces: https://xxxx-5500.app.github.dev -> https://xxxx-8000.app.github.dev
   const origin = window.location.origin;
   if (origin.includes(".app.github.dev")) {
     return origin.replace(/-\d+\.app\.github\.dev$/i, "-8000.app.github.dev");
   }
-  // local
   return "http://localhost:8000";
 }
 
@@ -79,7 +77,6 @@ function getApiBase() {
 }
 
 function initApiBase() {
-  // “roda por baixo”: sem UI, só garante que tem base
   const base = getApiBase();
   localStorage.setItem(LS_API_BASE, base);
 }
@@ -117,7 +114,6 @@ async function fetchJson(path, opts = {}) {
   }
 }
 
-// Checagem silenciosa (não aparece nada quando OK)
 async function checkApiSilently() {
   try {
     await fetchJson("/health");
@@ -269,7 +265,7 @@ async function onResetPass() {
 }
 
 /* =======================
-   Tables (mantido)
+   Tables
    ======================= */
 function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterKeys = [] }) {
   if (!mountEl) return;
@@ -514,25 +510,21 @@ async function onStatement() {
    Wire + boot
    ======================= */
 function wire() {
-  // auth routing
   byId("btnGoForgot")?.addEventListener("click", () => (window.location.hash = "#/forgot"));
   byId("btnGoRegister")?.addEventListener("click", () => (window.location.hash = "#/register"));
   byId("btnBackLoginFromRegister")?.addEventListener("click", () => (window.location.hash = "#/login"));
   byId("btnBackLoginFromForgot")?.addEventListener("click", () => (window.location.hash = "#/login"));
   byId("btnBackLoginFromReset")?.addEventListener("click", () => (window.location.hash = "#/login"));
 
-  // auth actions
   byId("btnRegisterConfirm")?.addEventListener("click", onRegister);
   byId("btnLogin")?.addEventListener("click", onLogin);
   byId("btnForgotSend")?.addEventListener("click", onForgotSend);
   byId("btnResetPass")?.addEventListener("click", onResetPass);
 
-  // product ops
   byId("btnCreateProduct")?.addEventListener("click", onCreateProduct);
   byId("btnLoadProductsMin")?.addEventListener("click", onProductsMin);
   byId("btnLoadProductsTable")?.addEventListener("click", onProductsTable);
 
-  // stock ops
   byId("btnCreateMovement")?.addEventListener("click", onCreateMovement);
   byId("btnLoadBalance")?.addEventListener("click", onBalance);
   byId("btnLoadStatement")?.addEventListener("click", onStatement);
@@ -540,10 +532,7 @@ function wire() {
   const applyRoute = async () => {
     let name = routeNameFromHash();
 
-    // “Sair” no menu cai aqui: limpa token e volta pro login
-    if (name === "login") {
-      setToken("");
-    }
+    if (name === "login") setToken("");
 
     if (isProtectedRoute(name) && !isLoggedIn()) {
       flash("Você precisa estar logado.");
@@ -555,7 +544,6 @@ function wire() {
     showPage(name);
     updateNavAuthState();
 
-    // Mensagens “produto”
     const msg = consumeFlash();
     if (msg) {
       const out =
@@ -567,10 +555,8 @@ function wire() {
       if (out) setOut(out, { info: msg }, "ok");
     }
 
-    // Checagem silenciosa de API: não mostra nada se OK
     const ok = await checkApiSilently();
     if (!ok && AUTH_ROUTES.has(name)) {
-      // Só mostra se der ruim (aí é útil pro usuário)
       const out =
         name === "login" ? "loginOut" :
         name === "register" ? "registerOut" :
