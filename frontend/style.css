@@ -343,35 +343,66 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   .erp-table{min-width: 620px;}
 }
 
-/* ===== v0.3 UI polish ===== */
+/* ===== v0.3 UI polish (FIX) ===== */
 
-.navSep { height: 1px; opacity: .15; margin: 10px 0; background: currentColor; }
-
-.row.wrap { flex-wrap: wrap; align-items: center; }
-
-.authCard { max-width: 920px; margin: 0 auto; }
-
-.output { white-space: pre-wrap; word-break: break-word; }
-.output.empty { opacity: .7; }
-
-body.auth-mode .sidebar {
-  display: none;
+/* Em auth-mode, remove a coluna fantasma da sidebar */
+body.auth-mode .app{
+  grid-template-columns: 1fr;
 }
 
-body.auth-mode .main {
+/* Sidebar some totalmente no auth */
+body.auth-mode .sidebar{
+  display:none !important;
+}
+
+/* Main ocupa tudo e centraliza */
+body.auth-mode .main{
+  grid-column: 1 / -1;
   width: 100%;
   max-width: 980px;
   margin: 0 auto;
-  padding-left: 18px;
-  padding-right: 18px;
+  padding: 22px 18px 40px;
 }
 
-body.auth-mode .top {
+/* Header centralizado no auth */
+body.auth-mode .top{
   justify-content: center;
   text-align: center;
 }
 
-body.auth-mode .footer {
-  opacity: .65;
+/* Card do auth central e com largura estável */
+body.auth-mode .authCard{
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
 }
 
+/* ESSENCIAL: evita inputs vazando por min-width no auth */
+body.auth-mode .authCard .field,
+body.auth-mode .authCard .field.wide{
+  min-width: 0;
+}
+
+/* Grid mais "produto" no auth */
+body.auth-mode .authCard .grid3{
+  grid-template-columns: 1fr 1fr 140px;
+}
+
+/* Mobile: empilha */
+@media (max-width: 900px){
+  body.auth-mode .authCard .grid3{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Output mais legível */
+.output{
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.output.empty{ opacity: .75; }
+
+/* Esconde status de API e rodapé da sidebar (produção) */
+.pill, .sideFoot{
+  display:none !important;
+}
