@@ -13,6 +13,7 @@ from .models import User, PasswordReset, AccessToken
 
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24h
+RESET_TOKEN_EXPIRE_MINUTES = 15        # 15 min
 PWD_ITERATIONS = 200_000
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -103,46 +104,41 @@ def get_current_user(
 
 
 # -----------------------
-# PASSWORD RESET (DEV)
+# PASSWORD RESET (6 dígitos)
 # -----------------------
-def create_reset_token(session: Session, user: User, minutes_valid: int = 30) -> str:
-    raw = secrets.token_urlsafe(32)
-    token_hash = _sha256(raw)
+def generate_reset_code() -> str:
+    # pode ter zero à esquerda => sempre 6 dígitos
+    return f"{secrets.randbelow(1_000_000):06d}"
 
-    reset = PasswordReset(
-        user_id=user.id,
-        token_hash=token_hash,
-        expires_at=datetime.utcnow() + timedelta(minutes=minutes_valid),
-    )
-    session.add(reset)
+
+def create_password_reset(session: Session, user_id: int) -> str:
+    raw = generate_reset_code()
+    token_hash = _sha256(raw)
+    expires_at = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+
+    row = PasswordReset(user_id=user_id, token_hash=token_hash, expires_at=expires_at)
+    session.add(row)
     session.commit()
     return raw
 
 
-def consume_reset_token(session: Session, raw_token: str) -> User:
+def consume_password_reset(session: Session, user_id: int, raw_token: str) -> None:
     token_hash = _sha256(raw_token)
 
     reset = session.exec(
         select(PasswordReset)
-        .where(PasswordReset.token_hash == token_hash)
+        .where(
+            PasswordReset.user_id == user_id,
+            PasswordReset.token_hash == token_hash,
+            PasswordReset.used_at.is_(None),
+            PasswordReset.expires_at > datetime.utcnow(),
+        )
         .order_by(PasswordReset.id.desc())
     ).first()
 
     if not reset:
-        raise HTTPException(status_code=400, detail="invalid token")
-
-    if reset.used_at is not None:
-        raise HTTPException(status_code=400, detail="token already used")
-
-    if reset.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=400, detail="token expired")
-
-    user = session.get(User, reset.user_id)
-    if not user:
-        raise HTTPException(status_code=400, detail="user not found")
+        raise HTTPException(status_code=400, detail="token inválido ou expirado")
 
     reset.used_at = datetime.utcnow()
     session.add(reset)
     session.commit()
-
-    return user
