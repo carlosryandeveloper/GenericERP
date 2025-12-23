@@ -7,18 +7,19 @@ from email.message import EmailMessage
 
 def send_email(to_email: str, subject: str, body: str) -> bool:
     """
-    Envia e-mail via SMTP.
-    Configure as variáveis de ambiente:
-      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (opcional),
+    Envio SMTP.
+    Configure ENV:
+      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+      SMTP_FROM (opcional)
       SMTP_TLS=true/false, SMTP_SSL=true/false
+    Sem SMTP_HOST -> modo DEV: imprime no console.
     """
     host = (os.getenv("SMTP_HOST") or "").strip()
     if not host:
-        # modo DEV: sem SMTP configurado
-        print("[MAILER] SMTP_HOST não definido. E-mail não enviado.")
-        print("[MAILER] Para:", to_email)
-        print("[MAILER] Assunto:", subject)
-        print("[MAILER] Corpo:\n", body)
+        print("\n[MAILER DEV] SMTP_HOST não definido. Simulando envio.")
+        print("[MAILER DEV] Para:", to_email)
+        print("[MAILER DEV] Assunto:", subject)
+        print("[MAILER DEV] Corpo:\n" + body + "\n")
         return False
 
     port = int(os.getenv("SMTP_PORT") or "587")
@@ -44,10 +45,8 @@ def send_email(to_email: str, subject: str, body: str) -> bool:
         with server:
             if use_tls and not use_ssl:
                 server.starttls()
-
             if user and password:
                 server.login(user, password)
-
             server.send_message(msg)
 
         return True
