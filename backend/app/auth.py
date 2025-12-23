@@ -9,11 +9,15 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
 
 from .db import get_session
-from .models import User, PasswordReset, AccessToken
+from .models import User, AccessToken, PasswordReset
 
-
+# Tokens de login (Bearer opaco)
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24h
-RESET_TOKEN_EXPIRE_MINUTES = 15        # 15 min
+
+# Reset senha: token 6 dígitos
+RESET_TOKEN_EXPIRE_MINUTES = 15
+
+# Hash senha (PBKDF2)
 PWD_ITERATIONS = 200_000
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -23,9 +27,13 @@ def _sha256(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
-# -----------------------
+def _clean_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+
+# =======================
 # PASSWORD HASH (PBKDF2)
-# -----------------------
+# =======================
 def hash_password(password: str) -> str:
     pw = (password or "").encode("utf-8")
     salt = secrets.token_bytes(16)
@@ -48,9 +56,9 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-# -----------------------
+# =======================
 # ACCESS TOKEN (OPACO)
-# -----------------------
+# =======================
 def create_access_token(session: Session, user_id: int) -> str:
     raw = secrets.token_urlsafe(32)
     token_hash = _sha256(raw)
@@ -63,6 +71,8 @@ def create_access_token(session: Session, user_id: int) -> str:
 
 
 def revoke_access_token(session: Session, raw_token: str) -> None:
+    if not raw_token:
+        return
     token_hash = _sha256(raw_token)
     row = session.exec(select(AccessToken).where(AccessToken.token_hash == token_hash)).first()
     if not row:
@@ -89,10 +99,8 @@ def get_current_user(
 
     if not row:
         raise HTTPException(status_code=401, detail="invalid token")
-
     if row.revoked_at is not None:
         raise HTTPException(status_code=401, detail="token revoked")
-
     if row.expires_at < datetime.utcnow():
         raise HTTPException(status_code=401, detail="token expired")
 
@@ -103,16 +111,15 @@ def get_current_user(
     return user
 
 
-# -----------------------
-# PASSWORD RESET (6 dígitos)
-# -----------------------
-def generate_reset_code() -> str:
-    # pode ter zero à esquerda => sempre 6 dígitos
-    return f"{secrets.randbelow(1_000_000):06d}"
+# =======================
+# RESET TOKEN (6 dígitos)
+# =======================
+def _gen_6_digits() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"  # mantém 000123 etc
 
 
 def create_password_reset(session: Session, user_id: int) -> str:
-    raw = generate_reset_code()
+    raw = _gen_6_digits()
     token_hash = _sha256(raw)
     expires_at = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
 
