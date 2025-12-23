@@ -243,4 +243,3 @@ def stock_statement(
 # -----------------------
 # Se você tem arquivo de rotas de auth separado, inclua aqui:
 # app.include_router(auth_router, prefix="/auth", tags=["auth"])
-PY
