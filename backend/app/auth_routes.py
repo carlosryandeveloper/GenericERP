@@ -3,24 +3,29 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select, SQLModel
+from fastapi.security import OAuth2PasswordBearer
+from sqlmodel import Session, SQLModel, select
 
 from .db import get_session
 from .models import User
+from .mailer import send_email
 from .auth import (
     hash_password,
     verify_password,
     create_access_token,
     get_current_user,
-    oauth2_scheme,
     revoke_access_token,
     create_password_reset,
     consume_password_reset,
     RESET_TOKEN_EXPIRE_MINUTES,
 )
-from .mailer import send_email
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+
+def _clean_email(email: str) -> str:
+    return (email or "").strip().lower()
 
 
 class RegisterIn(SQLModel):
@@ -48,19 +53,10 @@ class ForgotIn(SQLModel):
     email: str
 
 
-class ForgotOut(SQLModel):
-    ok: bool = True
-    email_sent: bool = False
-
-
 class ResetIn(SQLModel):
     email: str
     token: str
     new_password: str
-
-
-def _clean_email(email: str) -> str:
-    return (email or "").strip().lower()
 
 
 @router.post("/register")
@@ -75,18 +71,27 @@ def register(payload: RegisterIn, session: Session = Depends(get_session)):
 
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
-        raise HTTPException(status_code=409, detail="e-mail já cadastrado")
+        # Aqui tá a validação que você pediu: informa e orienta pro reset.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "EMAIL_ALREADY_EXISTS",
+                "message": "Já existe uma conta com esse e-mail.",
+                "hint": "Se você esqueceu a senha, clique em 'Esqueci minha senha' para receber um token de 6 números e redefinir.",
+                "action": "forgot_password",
+            },
+        )
 
     user = User(email=email, password_hash=hash_password(password))
     session.add(user)
     session.commit()
     session.refresh(user)
 
-    subject = "Sua conta foi criada no GenericERP"
+    subject = "Conta criada no GenericERP"
     body = (
         "Olá!\n\n"
         "Sua conta no GenericERP foi criada com sucesso.\n"
-        "Você já pode voltar para a tela de login e entrar com seu e-mail e senha.\n\n"
+        "Agora você pode voltar para a tela de login e entrar.\n\n"
         "Se não foi você, ignore este e-mail."
     )
     email_sent = send_email(email, subject, body)
@@ -125,27 +130,27 @@ def logout(
     return {"ok": True}
 
 
-@router.post("/forgot-password", response_model=ForgotOut)
+@router.post("/forgot-password")
 def forgot_password(payload: ForgotIn, session: Session = Depends(get_session)):
     email = _clean_email(payload.email)
 
-    # resposta sempre ok (pra não entregar se o e-mail existe)
+    # Resposta "ok" mesmo se não existir (pra não vazar se o e-mail está cadastrado).
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
-        return ForgotOut(ok=True, email_sent=False)
+        return {"ok": True, "email_sent": False}
 
     code = create_password_reset(session, user.id)
 
     subject = "Token para redefinir sua senha (GenericERP)"
     body = (
-        "Você pediu para redefinir sua senha.\n\n"
+        "Você solicitou redefinição de senha.\n\n"
         f"Seu token de 6 dígitos é: {code}\n"
-        f"Ele expira em {RESET_TOKEN_EXPIRE_MINUTES} minutos.\n\n"
+        f"Expira em {RESET_TOKEN_EXPIRE_MINUTES} minutos.\n\n"
         "Se não foi você, ignore este e-mail."
     )
     email_sent = send_email(email, subject, body)
 
-    return ForgotOut(ok=True, email_sent=email_sent)
+    return {"ok": True, "email_sent": email_sent}
 
 
 @router.post("/reset-password")
@@ -172,7 +177,7 @@ def reset_password(payload: ResetIn, session: Session = Depends(get_session)):
     send_email(
         email,
         "Senha alterada no GenericERP",
-        "Sua senha foi alterada com sucesso.\nSe não foi você, redefina novamente e revise a segurança da sua conta.",
+        "Sua senha foi alterada com sucesso.\nSe não foi você, redefina novamente e revise a segurança da conta.",
     )
 
     return {"ok": True}
