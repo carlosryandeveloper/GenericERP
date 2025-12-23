@@ -23,7 +23,6 @@
         <a class="navLink" href="#/movements" data-route="movements" data-protected="1">Movimentações</a>
         <a class="navLink" href="#/balance" data-route="balance" data-protected="1">Saldo</a>
         <a class="navLink" href="#/statement" data-route="statement" data-protected="1">Extrato</a>
-        <div class="navSep"></div>
         <a class="navLink" href="#/login" data-route="login">Sair</a>
       </nav>
     </aside>
@@ -45,28 +44,44 @@
           </div>
 
           <div class="cardB">
-            <div class="grid3">
-              <div class="field wide">
-                <label>E-mail</label>
-                <input class="input" id="loginEmail" placeholder="voce@exemplo.com" autocomplete="username" />
+            <!-- LOGO AO LADO DOS CAMPOS -->
+            <div class="loginSplit">
+              <div class="loginBrandPane">
+                <img
+                  src="./assets/genericerp_lockup.png"
+                  class="loginBrandImg"
+                  alt="GenericERP"
+                />
+                <div class="loginBrandHint">ERP raiz: simples, auditável e sem “tela demo”.</div>
               </div>
-              <div class="field wide">
-                <label>Senha</label>
-                <input class="input" id="loginPass" type="password" placeholder="mín. 6 caracteres" autocomplete="current-password" />
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn primary" id="btnLogin">Entrar</button>
+
+              <div class="loginFormPane">
+                <div class="grid3">
+                  <div class="field wide">
+                    <label>E-mail</label>
+                    <input class="input" id="loginEmail" placeholder="voce@exemplo.com" autocomplete="username" />
+                  </div>
+
+                  <div class="field wide">
+                    <label>Senha</label>
+                    <input class="input" id="loginPass" type="password" placeholder="mín. 6 caracteres" autocomplete="current-password" />
+                  </div>
+
+                  <div class="field">
+                    <label>&nbsp;</label>
+                    <button class="btn primary" id="btnLogin">Entrar</button>
+                  </div>
+                </div>
+
+                <div class="row wrap" style="margin-top:10px;gap:10px;">
+                  <button class="btn ghost" id="btnGoForgot">Esqueci minha senha</button>
+                  <button class="btn" id="btnGoRegister">Criar conta</button>
+                  <span class="muted" style="margin-left:auto">Token só no reset.</span>
+                </div>
+
+                <pre id="loginOut" class="output empty">—</pre>
               </div>
             </div>
-
-            <div class="row wrap" style="margin-top:10px;gap:10px;">
-              <button class="btn ghost" id="btnGoForgot">Esqueci minha senha</button>
-              <button class="btn" id="btnGoRegister">Criar conta</button>
-              <span class="muted" style="margin-left:auto">Dica: token só no reset.</span>
-            </div>
-
-            <pre id="loginOut" class="output empty">—</pre>
           </div>
         </div>
       </section>
