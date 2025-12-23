@@ -4,11 +4,13 @@ from datetime import date, datetime, time, timedelta
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import and_, case, func
 from sqlmodel import SQLModel, Session, select
-from sqlalchemy import func, case, and_
 
 from .db import engine, get_session
-from .models import Product, StockMovement, User, PasswordReset, AccessToken
+
+# Importa tudo pra garantir create_all() completo
+from .models import User, AccessToken, PasswordReset, Product, StockMovement
 from .auth import get_current_user
 from .auth_routes import router as auth_router
 
@@ -52,8 +54,9 @@ class StockStatement(SQLModel):
     lines: list[StockStatementLine]
 
 
-app = FastAPI(title="GenericERP API", version="0.3.0")
+app = FastAPI(title="GenericERP API", version="0.3.1")
 
+# Libera front local / outra porta
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -69,7 +72,7 @@ def on_startup():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "GenericERP API", "version": "0.3.0"}
+    return {"status": "ok", "service": "GenericERP API", "version": "0.3.1"}
 
 
 @app.get("/debug/routes")
@@ -77,9 +80,32 @@ def debug_routes():
     return sorted({getattr(r, "path", "") for r in app.routes})
 
 
+# AUTH
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 
+# =======================
+# HELPERS
+# =======================
+def _signed_qty_expr():
+    return case(
+        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
+        (StockMovement.type == "OUT", -StockMovement.quantity),
+        else_=0,
+    )
+
+
+def _current_balance(session: Session, user_id: int, product_id: int) -> float:
+    expr = _signed_qty_expr()
+    stmt = select(func.coalesce(func.sum(expr), 0)).where(
+        and_(StockMovement.user_id == user_id, StockMovement.product_id == product_id)
+    )
+    return float(session.exec(stmt).one())
+
+
+# =======================
+# PRODUCTS (por usuário)
+# =======================
 @app.post("/products", response_model=Product)
 def create_product(
     payload: ProductCreate,
@@ -101,7 +127,7 @@ def create_product(
         select(Product).where(and_(Product.user_id == user.id, Product.sku == sku))
     ).first()
     if existing:
-        raise HTTPException(status_code=409, detail="sku já existe")
+        raise HTTPException(status_code=409, detail="sku já existe para este usuário")
 
     product = Product(user_id=user.id, sku=sku, name=name, unit=unit)
     session.add(product)
@@ -116,9 +142,7 @@ def list_products(
     user: User = Depends(get_current_user),
 ):
     return session.exec(
-        select(Product)
-        .where(Product.user_id == user.id)
-        .order_by(Product.id.desc())
+        select(Product).where(Product.user_id == user.id).order_by(Product.id.desc())
     ).all()
 
 
@@ -135,22 +159,9 @@ def products_min(
     return [{"id": r[0], "name": r[1], "unit": r[2]} for r in rows]
 
 
-def _signed_qty_expr():
-    return case(
-        (StockMovement.type.in_(["IN", "ADJUST"]), StockMovement.quantity),
-        (StockMovement.type == "OUT", -StockMovement.quantity),
-        else_=0,
-    )
-
-
-def _current_balance(session: Session, user_id: int, product_id: int) -> float:
-    expr = _signed_qty_expr()
-    stmt = select(func.coalesce(func.sum(expr), 0)).where(
-        and_(StockMovement.user_id == user_id, StockMovement.product_id == product_id)
-    )
-    return float(session.exec(stmt).one())
-
-
+# =======================
+# MOVEMENTS (por usuário)
+# =======================
 @app.post("/stock/movements", response_model=StockMovement)
 def create_movement(
     payload: MovementCreate,
@@ -167,12 +178,14 @@ def create_movement(
     if mv_type == "ADJUST" and not note:
         raise HTTPException(status_code=400, detail="ADJUST exige observação")
 
+    # produto tem que ser do usuário
     product = session.exec(
         select(Product).where(and_(Product.id == payload.product_id, Product.user_id == user.id))
     ).first()
     if not product:
         raise HTTPException(status_code=404, detail="produto não encontrado")
 
+    # OUT não pode negativar
     if mv_type == "OUT":
         bal = _current_balance(session, user.id, payload.product_id)
         if bal - float(payload.quantity) < 0:
@@ -191,6 +204,21 @@ def create_movement(
     return mv
 
 
+@app.get("/stock/movements", response_model=list[StockMovement])
+def list_movements(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return session.exec(
+        select(StockMovement)
+        .where(StockMovement.user_id == user.id)
+        .order_by(StockMovement.id.desc())
+    ).all()
+
+
+# =======================
+# BALANCE (por usuário)
+# =======================
 @app.get("/stock/balance", response_model=list[StockBalance])
 def stock_balance(
     session: Session = Depends(get_session),
@@ -218,6 +246,9 @@ def stock_balance(
     return [StockBalance(**dict(r._mapping)) for r in rows]
 
 
+# =======================
+# STATEMENT (por usuário)
+# =======================
 @app.get("/stock/statement", response_model=StockStatement)
 def stock_statement(
     product_id: int,
@@ -260,13 +291,7 @@ def stock_statement(
     lines: list[StockStatementLine] = []
 
     for mv in movements:
-        if mv.type in ("IN", "ADJUST"):
-            signed = float(mv.quantity)
-        elif mv.type == "OUT":
-            signed = -float(mv.quantity)
-        else:
-            signed = 0.0
-
+        signed = float(mv.quantity) if mv.type in ("IN", "ADJUST") else -float(mv.quantity)
         balance += signed
 
         lines.append(
@@ -276,7 +301,7 @@ def stock_statement(
                 type=mv.type,
                 quantity=float(mv.quantity),
                 signed_quantity=signed,
-                note=getattr(mv, "note", None),
+                note=mv.note,
                 balance_after=balance,
             )
         )
