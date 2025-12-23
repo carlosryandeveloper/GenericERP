@@ -1,6 +1,5 @@
 from sqlmodel import Session, create_engine
 
-# SQLite simples pro MVP
 DATABASE_URL = "sqlite:///./dev.db"
 
 engine = create_engine(
@@ -12,4 +11,3 @@ engine = create_engine(
 def get_session():
     with Session(engine) as session:
         yield session
-        
