@@ -1,328 +1,592 @@
-<!doctype html>
-<html lang="pt-br">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GenericERP</title>
-  <link rel="stylesheet" href="./style.css" />
-  <script defer src="./app.js"></script>
-</head>
-<body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="logo">GE</div>
-        <div class="brandTxt">
-          <div class="brandName">GenericERP</div>
-          <div class="brandSub">v0.3</div>
-        </div>
-      </div>
+const byId = (id) => document.getElementById(id);
 
-      <nav class="nav">
-        <a class="navLink" href="#/products" data-route="products" data-protected="1">Produtos</a>
-        <a class="navLink" href="#/movements" data-route="movements" data-protected="1">Movimentações</a>
-        <a class="navLink" href="#/balance" data-route="balance" data-protected="1">Saldo</a>
-        <a class="navLink" href="#/statement" data-route="statement" data-protected="1">Extrato</a>
-        <div class="navSep"></div>
-        <a class="navLink" href="#/login" data-route="login">Sair</a>
-      </nav>
-    </aside>
+const LS_TOKEN = "genericerp.token";
+const LS_API_BASE = "genericerp.apiBase";
+const SS_FLASH = "genericerp.flash";
 
-    <main class="main">
-      <header class="top">
-        <div class="topTitle">
-          <h1 id="pageTitle">Login</h1>
-          <p id="pageDesc">Entre com seu e-mail e senha.</p>
-        </div>
-      </header>
+const AUTH_ROUTES = new Set(["login", "register", "forgot", "reset"]);
 
-      <!-- LOGIN -->
-      <section class="page" data-page="login">
-        <div class="card authCard">
-          <div class="cardH">
-            <h2>Login</h2>
-            <p class="muted">Entre com seu e-mail e senha.</p>
-          </div>
+const ROUTES = {
+  login: { title: "Login", desc: "Entre com seu e-mail e senha." },
+  register: { title: "Criar conta", desc: "Cadastro com confirmação por e-mail." },
+  forgot: { title: "Esqueci minha senha", desc: "Envia token de 6 dígitos para o e-mail." },
+  reset: { title: "Redefinir senha", desc: "Informe token e defina a nova senha." },
 
-          <div class="cardB">
-            <div class="grid3">
-              <div class="field wide">
-                <label>E-mail</label>
-                <input class="input" id="loginEmail" placeholder="voce@exemplo.com" autocomplete="username" />
-              </div>
-              <div class="field wide">
-                <label>Senha</label>
-                <input class="input" id="loginPass" type="password" placeholder="mín. 6 caracteres" autocomplete="current-password" />
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn primary" id="btnLogin">Entrar</button>
-              </div>
-            </div>
+  products: { title: "Produtos", desc: "Cadastros e listagens." },
+  movements: { title: "Movimentações", desc: "Entradas, saídas e ajustes." },
+  balance: { title: "Saldo", desc: "Saldo por produto." },
+  statement: { title: "Extrato", desc: "Extrato com saldo acumulado." },
+};
 
-            <div class="row wrap" style="margin-top:10px;gap:10px;">
-              <button class="btn ghost" id="btnGoForgot">Esqueci minha senha</button>
-              <button class="btn" id="btnGoRegister">Criar conta</button>
-              <span class="muted" style="margin-left:auto">Dica: token só no reset.</span>
-            </div>
+function pretty(v) {
+  try { return typeof v === "string" ? v : JSON.stringify(v, null, 2); }
+  catch { return String(v); }
+}
 
-            <pre id="loginOut" class="output empty">—</pre>
-          </div>
-        </div>
-      </section>
+function setOut(elId, value, kind = "ok") {
+  const el = byId(elId);
+  if (!el) return;
 
-      <!-- REGISTER -->
-      <section class="page" data-page="register">
-        <div class="card authCard">
-          <div class="cardH">
-            <h2>Criar conta</h2>
-            <p class="muted">Você recebe e-mail de confirmação. Sem token aqui.</p>
-          </div>
+  el.classList.remove("empty", "ok", "err");
+  if (value === null || value === undefined || value === "" || value === "—") {
+    el.textContent = "—";
+    el.classList.add("empty");
+    return;
+  }
+  el.textContent = pretty(value);
+  el.classList.add(kind === "err" ? "err" : "ok");
+}
 
-          <div class="cardB">
-            <div class="grid3">
-              <div class="field wide">
-                <label>E-mail</label>
-                <input class="input" id="regEmail" placeholder="voce@exemplo.com" autocomplete="email" />
-              </div>
-              <div class="field wide">
-                <label>Senha</label>
-                <input class="input" id="regPass" type="password" placeholder="mín. 6 caracteres" autocomplete="new-password" />
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn primary" id="btnRegisterConfirm">Criar conta</button>
-              </div>
-            </div>
+function flash(msg) {
+  sessionStorage.setItem(SS_FLASH, msg);
+}
+function consumeFlash() {
+  const v = sessionStorage.getItem(SS_FLASH) || "";
+  sessionStorage.removeItem(SS_FLASH);
+  return v;
+}
 
-            <div class="row wrap" style="margin-top:10px;gap:10px;">
-              <button class="btn ghost" id="btnBackLoginFromRegister">Voltar</button>
-            </div>
+function setToken(t) {
+  if (!t) localStorage.removeItem(LS_TOKEN);
+  else localStorage.setItem(LS_TOKEN, t);
+}
+function getToken() {
+  return localStorage.getItem(LS_TOKEN) || "";
+}
+function isLoggedIn() {
+  return !!getToken();
+}
 
-            <pre id="registerOut" class="output empty">—</pre>
-          </div>
-        </div>
-      </section>
+function normalizeBase(url) {
+  let u = (url || "").trim();
+  if (!u) return "";
+  return u.replace(/\/+$/, "");
+}
 
-      <!-- FORGOT -->
-      <section class="page" data-page="forgot">
-        <div class="card authCard">
-          <div class="cardH">
-            <h2>Esqueci minha senha</h2>
-            <p class="muted">Enviaremos um token de <b>6 números</b> para o e-mail.</p>
-          </div>
+function guessApiBase() {
+  // Codespaces: https://xxxx-5500.app.github.dev -> https://xxxx-8000.app.github.dev
+  const origin = window.location.origin;
+  if (origin.includes(".app.github.dev")) {
+    return origin.replace(/-\d+\.app\.github\.dev$/i, "-8000.app.github.dev");
+  }
+  // local
+  return "http://localhost:8000";
+}
 
-          <div class="cardB">
-            <div class="grid3">
-              <div class="field wide">
-                <label>E-mail</label>
-                <input class="input" id="fpEmail" placeholder="voce@exemplo.com" autocomplete="email" />
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn primary" id="btnForgotSend">Enviar token</button>
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn ghost" id="btnBackLoginFromForgot">Voltar</button>
-              </div>
-            </div>
+function getApiBase() {
+  const stored = localStorage.getItem(LS_API_BASE);
+  return normalizeBase(stored || "") || normalizeBase(guessApiBase());
+}
 
-            <pre id="forgotOut" class="output empty">—</pre>
-          </div>
-        </div>
-      </section>
+function initApiBase() {
+  // “roda por baixo”: sem UI, só garante que tem base
+  const base = getApiBase();
+  localStorage.setItem(LS_API_BASE, base);
+}
 
-      <!-- RESET -->
-      <section class="page" data-page="reset">
-        <div class="card authCard">
-          <div class="cardH">
-            <h2>Redefinir senha</h2>
-            <p class="muted">Informe o token de 6 números e defina a nova senha.</p>
-          </div>
+async function fetchJson(path, opts = {}) {
+  const base = getApiBase();
+  const url = base + path;
 
-          <div class="cardB">
-            <div class="grid3">
-              <div class="field wide">
-                <label>E-mail</label>
-                <input class="input" id="rpEmail" placeholder="voce@exemplo.com" autocomplete="email" />
-              </div>
-              <div class="field">
-                <label>Token</label>
-                <input class="input" id="rpToken" placeholder="000000" maxlength="6" inputmode="numeric" />
-              </div>
-              <div class="field wide">
-                <label>Nova senha</label>
-                <input class="input" id="rpNewPass" type="password" placeholder="mín. 6 caracteres" autocomplete="new-password" />
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn primary" id="btnResetPass">Alterar senha</button>
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn ghost" id="btnBackLoginFromReset">Voltar</button>
-              </div>
-            </div>
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
-            <pre id="resetOut" class="output empty">—</pre>
-          </div>
-        </div>
-      </section>
+  try {
+    const token = getToken();
+    const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+    if (token) headers["Authorization"] = "Bearer " + token;
 
-      <!-- PRODUCTS -->
-      <section class="page" data-page="products">
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Produtos</h2>
-              <p class="muted">SKU é único por usuário.</p>
-            </div>
-            <button class="btn primary" id="btnCreateProduct">Criar produto</button>
-          </div>
+    const res = await fetch(url, { ...opts, signal: controller.signal, headers });
+    const text = await res.text();
 
-          <div class="cardB">
-            <div class="grid3">
-              <div class="field">
-                <label>SKU</label>
-                <input class="input" id="pSku" placeholder="P-001" />
-              </div>
-              <div class="field wide">
-                <label>Nome</label>
-                <input class="input" id="pName" placeholder="Caneta Azul" />
-              </div>
-              <div class="field">
-                <label>Unidade</label>
-                <input class="input" id="pUnit" placeholder="UN" />
-              </div>
-            </div>
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; }
+    catch { data = { raw: text }; }
 
-            <pre id="productOut" class="output empty">—</pre>
-          </div>
-        </div>
+    if (!res.ok) {
+      const e = new Error(data?.detail ? `${res.status} ${pretty(data.detail)}` : `${res.status} ${res.statusText}`);
+      e.status = res.status;
+      e.data = data;
+      if (res.status === 401) setToken("");
+      throw e;
+    }
 
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Lista rápida</h2>
-              <p class="muted">ID, Nome, Unidade</p>
-            </div>
-            <button class="btn ghost" id="btnLoadProductsMin">Carregar</button>
-          </div>
-          <div class="cardB">
-            <pre id="productsMinMsg" class="output empty">—</pre>
-            <div id="productsMinTable"></div>
-          </div>
-        </div>
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Tabela completa</h2>
-              <p class="muted">ID, SKU, Nome, Unidade</p>
-            </div>
-            <button class="btn ghost" id="btnLoadProductsTable">Carregar</button>
-          </div>
-          <div class="cardB">
-            <pre id="productsTableMsg" class="output empty">—</pre>
-            <div id="productsTable"></div>
-          </div>
-        </div>
-      </section>
+// Checagem silenciosa (não aparece nada quando OK)
+async function checkApiSilently() {
+  try {
+    await fetchJson("/health");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-      <!-- MOVEMENTS -->
-      <section class="page" data-page="movements">
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Movimentações</h2>
-              <p class="muted">OUT não deixa saldo negativo. ADJUST exige observação.</p>
-            </div>
-            <button class="btn primary" id="btnCreateMovement">Lançar</button>
-          </div>
+/* =======================
+   ROUTING / UI
+   ======================= */
+function routeNameFromHash() {
+  const h = (window.location.hash || "").trim();
+  const m = h.match(/^#\/([a-z-]+)/i);
+  const name = m ? m[1] : "login";
+  return ROUTES[name] ? name : "login";
+}
 
-          <div class="cardB">
-            <div class="grid4">
-              <div class="field">
-                <label>ID do produto</label>
-                <input class="input" id="mProductId" placeholder="Ex: 1" />
-              </div>
-              <div class="field">
-                <label>Tipo</label>
-                <select id="mType">
-                  <option value="IN">IN (Entrada)</option>
-                  <option value="OUT">OUT (Saída)</option>
-                  <option value="ADJUST">ADJUST (Ajuste)</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Quantidade</label>
-                <input class="input" id="mQty" placeholder="Ex: 10" />
-              </div>
-              <div class="field wide">
-                <label>Observação</label>
-                <input class="input" id="mNote" placeholder="Obrigatória para ADJUST" />
-              </div>
-            </div>
+function isProtectedRoute(name) {
+  return ["products", "movements", "balance", "statement"].includes(name);
+}
 
-            <pre id="movementOut" class="output empty">—</pre>
-          </div>
-        </div>
-      </section>
+function updateNavAuthState() {
+  const logged = isLoggedIn();
+  document.querySelectorAll('.navLink[data-protected="1"]').forEach((a) => {
+    a.style.display = logged ? "" : "none";
+  });
+}
 
-      <!-- BALANCE -->
-      <section class="page" data-page="balance">
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Saldo</h2>
-              <p class="muted">Saldo por produto (por usuário).</p>
-            </div>
-            <button class="btn ghost" id="btnLoadBalance">Carregar</button>
-          </div>
+function setAuthMode(routeName) {
+  const isAuth = AUTH_ROUTES.has(routeName);
+  document.body.classList.toggle("auth-mode", isAuth);
+}
 
-          <div class="cardB">
-            <pre id="balanceOut" class="output empty">—</pre>
-          </div>
-        </div>
-      </section>
+function showPage(name) {
+  document.querySelectorAll(".page").forEach((p) => {
+    p.style.display = (p.dataset.page === name) ? "block" : "none";
+  });
 
-      <!-- STATEMENT -->
-      <section class="page" data-page="statement">
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Extrato</h2>
-              <p class="muted">Histórico com saldo acumulado.</p>
-            </div>
-            <button class="btn ghost" id="btnLoadStatement">Carregar</button>
-          </div>
+  document.querySelectorAll(".navLink").forEach((a) => {
+    a.classList.toggle("active", a.dataset.route === name);
+  });
 
-          <div class="cardB">
-            <div class="grid3">
-              <div class="field">
-                <label>ID do produto</label>
-                <input class="input" id="sProductId" placeholder="Ex: 1" />
-              </div>
-              <div class="field">
-                <label>De</label>
-                <input class="input" id="sFrom" placeholder="YYYY-MM-DD" />
-              </div>
-              <div class="field">
-                <label>Até</label>
-                <input class="input" id="sTo" placeholder="YYYY-MM-DD" />
-              </div>
-            </div>
+  byId("pageTitle").textContent = ROUTES[name].title;
+  byId("pageDesc").textContent = ROUTES[name].desc;
+}
 
-            <pre id="statementOut" class="output empty">—</pre>
-          </div>
-        </div>
-      </section>
+/* =======================
+   AUTH actions
+   ======================= */
+async function onRegister() {
+  setOut("registerOut", "Criando conta...", "ok");
 
-      <footer class="footer">
-        GenericERP • v0.3 • auth + reset 6 dígitos
-      </footer>
-    </main>
-  </div>
-</body>
-</html>
+  const email = (byId("regEmail").value || "").trim();
+  const password = (byId("regPass").value || "").trim();
+
+  try {
+    const data = await fetchJson("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+    setOut("registerOut", data, "ok");
+    flash("Conta criada. Verifique seu e-mail de confirmação e volte para o login.");
+    window.location.hash = "#/login";
+  } catch (e) {
+    if (e.status === 409) {
+      const detail = e.data?.detail;
+      const msg =
+        (typeof detail === "object" && (detail.message || detail.hint))
+          ? `${detail.message || ""}\n${detail.hint || ""}`.trim()
+          : "Já existe uma conta com esse e-mail. Use 'Esqueci minha senha' para redefinir.";
+
+      setOut("registerOut", { erro: msg }, "err");
+      if (byId("fpEmail")) byId("fpEmail").value = email;
+      flash(msg);
+      window.location.hash = "#/forgot";
+      return;
+    }
+
+    setOut("registerOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+async function onLogin() {
+  setOut("loginOut", "Entrando...", "ok");
+
+  const email = (byId("loginEmail").value || "").trim();
+  const password = (byId("loginPass").value || "").trim();
+
+  try {
+    const data = await fetchJson("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+    setToken(data.access_token || "");
+    updateNavAuthState();
+
+    flash("Login feito. Indo para Produtos.");
+    window.location.hash = "#/products";
+  } catch (e) {
+    setToken("");
+    updateNavAuthState();
+    setOut("loginOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+async function onForgotSend() {
+  setOut("forgotOut", "Enviando token...", "ok");
+  const email = (byId("fpEmail").value || "").trim();
+
+  try {
+    const data = await fetchJson("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+
+    setOut("forgotOut", data, "ok");
+    if (byId("rpEmail")) byId("rpEmail").value = email;
+
+    flash("Se o e-mail existir, você vai receber um token de 6 dígitos. Agora redefina a senha.");
+    window.location.hash = "#/reset";
+  } catch (e) {
+    setOut("forgotOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+async function onResetPass() {
+  setOut("resetOut", "Alterando senha...", "ok");
+
+  const email = (byId("rpEmail").value || "").trim();
+  const token = (byId("rpToken").value || "").trim();
+  const new_password = (byId("rpNewPass").value || "").trim();
+
+  try {
+    const data = await fetchJson("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ email, token, new_password }),
+    });
+
+    setOut("resetOut", data, "ok");
+    flash("Senha alterada. Volte pro login e entre.");
+    window.location.hash = "#/login";
+  } catch (e) {
+    setOut("resetOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+/* =======================
+   Tables (mantido)
+   ======================= */
+function renderTable({ mountEl, columns, rows, emptyText = "Sem dados.", filterKeys = [] }) {
+  if (!mountEl) return;
+
+  let state = { q: "", sortKey: null, sortDir: "asc" };
+
+  const wrap = document.createElement("div");
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "table-toolbar";
+  toolbar.innerHTML = `
+    <input type="text" placeholder="Filtrar..." />
+    <div class="muted"><span class="mono">${rows.length}</span> registro(s)</div>
+  `;
+
+  const input = toolbar.querySelector("input");
+  input.addEventListener("input", () => {
+    state.q = input.value.trim().toLowerCase();
+    paint();
+  });
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "erp-table";
+
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+
+  columns.forEach((c) => {
+    const th = document.createElement("th");
+    th.textContent = c.title;
+    th.title = "Clique para ordenar";
+    th.addEventListener("click", () => {
+      if (state.sortKey === c.key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      else { state.sortKey = c.key; state.sortDir = "asc"; }
+      paint();
+    });
+    trh.appendChild(th);
+  });
+
+  thead.appendChild(trh);
+
+  const tbody = document.createElement("tbody");
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+
+  wrap.appendChild(toolbar);
+  wrap.appendChild(tableWrap);
+
+  mountEl.innerHTML = "";
+  mountEl.appendChild(wrap);
+
+  function applyFilter(list) {
+    if (!state.q) return list;
+    return list.filter((r) => {
+      const keys = filterKeys.length ? filterKeys : Object.keys(r || {});
+      const hay = keys.map((k) => String(r?.[k] ?? "").toLowerCase()).join(" ");
+      return hay.includes(state.q);
+    });
+  }
+
+  function applySort(list) {
+    if (!state.sortKey) return list;
+    const dir = state.sortDir === "asc" ? 1 : -1;
+    const key = state.sortKey;
+
+    return [...list].sort((a, b) => {
+      const va = a?.[key];
+      const vb = b?.[key];
+      const na = Number(va);
+      const nb = Number(vb);
+
+      if (!Number.isNaN(na) && !Number.isNaN(nb)) return (na - nb) * dir;
+      return String(va ?? "").localeCompare(String(vb ?? ""), "pt-BR") * dir;
+    });
+  }
+
+  function paint() {
+    const filtered = applyFilter(rows);
+    const finalRows = applySort(filtered);
+
+    tbody.innerHTML = "";
+
+    if (!finalRows.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = columns.length;
+      td.className = "muted";
+      td.style.padding = "14px";
+      td.textContent = emptyText;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    finalRows.forEach((r) => {
+      const tr = document.createElement("tr");
+      columns.forEach((c) => {
+        const td = document.createElement("td");
+        const raw = r?.[c.key];
+        if (c.className) td.className = c.className;
+        td.textContent = raw == null ? "" : String(raw);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  paint();
+}
+
+function parseNumber(v) {
+  const n = Number(String(v || "").replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/* =======================
+   Products / Mov / Balance / Statement
+   ======================= */
+async function onCreateProduct() {
+  setOut("productOut", "Criando produto...", "ok");
+  try {
+    const payload = {
+      sku: (byId("pSku").value || "").trim(),
+      name: (byId("pName").value || "").trim(),
+      unit: (byId("pUnit").value || "").trim(),
+    };
+    const data = await fetchJson("/products", { method: "POST", body: JSON.stringify(payload) });
+    setOut("productOut", data, "ok");
+  } catch (e) {
+    setOut("productOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+async function onProductsMin() {
+  const mount = byId("productsMinTable");
+  setOut("productsMinMsg", "Carregando...", "ok");
+  if (mount) mount.innerHTML = "";
+
+  try {
+    const rows = await fetchJson("/products/min");
+    renderTable({
+      mountEl: mount,
+      rows,
+      columns: [
+        { key: "id", title: "ID", className: "num" },
+        { key: "name", title: "Nome" },
+        { key: "unit", title: "Unidade" },
+      ],
+      filterKeys: ["id", "name", "unit"],
+      emptyText: "Nenhum produto ainda.",
+    });
+    setOut("productsMinMsg", "OK.", "ok");
+  } catch (e) {
+    setOut("productsMinMsg", { error: e.message, data: e.data }, "err");
+    if (mount) mount.innerHTML = "";
+  }
+}
+
+async function onProductsTable() {
+  const mount = byId("productsTable");
+  setOut("productsTableMsg", "Carregando...", "ok");
+  if (mount) mount.innerHTML = "";
+
+  try {
+    const rows = await fetchJson("/products");
+    renderTable({
+      mountEl: mount,
+      rows,
+      columns: [
+        { key: "id", title: "ID", className: "num" },
+        { key: "sku", title: "SKU" },
+        { key: "name", title: "Nome" },
+        { key: "unit", title: "Unidade" },
+      ],
+      filterKeys: ["id", "sku", "name", "unit"],
+      emptyText: "Nenhum produto ainda.",
+    });
+    setOut("productsTableMsg", "OK.", "ok");
+  } catch (e) {
+    setOut("productsTableMsg", { error: e.message, data: e.data }, "err");
+    if (mount) mount.innerHTML = "";
+  }
+}
+
+async function onCreateMovement() {
+  setOut("movementOut", "Lançando...", "ok");
+  try {
+    const product_id = parseInt(byId("mProductId").value, 10);
+    const type = byId("mType").value;
+    const quantity = parseNumber(byId("mQty").value);
+    const note = (byId("mNote").value || "").trim();
+
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("quantity inválida");
+
+    const payload = { product_id, type, quantity };
+    if (note) payload.note = note;
+
+    const data = await fetchJson("/stock/movements", { method: "POST", body: JSON.stringify(payload) });
+    setOut("movementOut", data, "ok");
+  } catch (e) {
+    setOut("movementOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+async function onBalance() {
+  setOut("balanceOut", "Carregando...", "ok");
+  try {
+    const data = await fetchJson("/stock/balance");
+    setOut("balanceOut", data, "ok");
+  } catch (e) {
+    setOut("balanceOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+async function onStatement() {
+  setOut("statementOut", "Carregando...", "ok");
+  try {
+    const product_id = parseInt(byId("sProductId").value, 10);
+    if (!Number.isFinite(product_id) || product_id <= 0) throw new Error("product_id inválido");
+
+    const from = (byId("sFrom").value || "").trim();
+    const to = (byId("sTo").value || "").trim();
+
+    const params = new URLSearchParams({ product_id: String(product_id) });
+    if (from) params.set("from_date", from);
+    if (to) params.set("to_date", to);
+
+    const data = await fetchJson("/stock/statement?" + params.toString());
+    setOut("statementOut", data, "ok");
+  } catch (e) {
+    setOut("statementOut", { error: e.message, data: e.data }, "err");
+  }
+}
+
+/* =======================
+   Wire + boot
+   ======================= */
+function wire() {
+  // auth routing
+  byId("btnGoForgot")?.addEventListener("click", () => (window.location.hash = "#/forgot"));
+  byId("btnGoRegister")?.addEventListener("click", () => (window.location.hash = "#/register"));
+  byId("btnBackLoginFromRegister")?.addEventListener("click", () => (window.location.hash = "#/login"));
+  byId("btnBackLoginFromForgot")?.addEventListener("click", () => (window.location.hash = "#/login"));
+  byId("btnBackLoginFromReset")?.addEventListener("click", () => (window.location.hash = "#/login"));
+
+  // auth actions
+  byId("btnRegisterConfirm")?.addEventListener("click", onRegister);
+  byId("btnLogin")?.addEventListener("click", onLogin);
+  byId("btnForgotSend")?.addEventListener("click", onForgotSend);
+  byId("btnResetPass")?.addEventListener("click", onResetPass);
+
+  // product ops
+  byId("btnCreateProduct")?.addEventListener("click", onCreateProduct);
+  byId("btnLoadProductsMin")?.addEventListener("click", onProductsMin);
+  byId("btnLoadProductsTable")?.addEventListener("click", onProductsTable);
+
+  // stock ops
+  byId("btnCreateMovement")?.addEventListener("click", onCreateMovement);
+  byId("btnLoadBalance")?.addEventListener("click", onBalance);
+  byId("btnLoadStatement")?.addEventListener("click", onStatement);
+
+  const applyRoute = async () => {
+    let name = routeNameFromHash();
+
+    // “Sair” no menu cai aqui: limpa token e volta pro login
+    if (name === "login") {
+      setToken("");
+    }
+
+    if (isProtectedRoute(name) && !isLoggedIn()) {
+      flash("Você precisa estar logado.");
+      name = "login";
+      window.location.hash = "#/login";
+    }
+
+    setAuthMode(name);
+    showPage(name);
+    updateNavAuthState();
+
+    // Mensagens “produto”
+    const msg = consumeFlash();
+    if (msg) {
+      const out =
+        name === "login" ? "loginOut" :
+        name === "register" ? "registerOut" :
+        name === "forgot" ? "forgotOut" :
+        name === "reset" ? "resetOut" : null;
+
+      if (out) setOut(out, { info: msg }, "ok");
+    }
+
+    // Checagem silenciosa de API: não mostra nada se OK
+    const ok = await checkApiSilently();
+    if (!ok && AUTH_ROUTES.has(name)) {
+      // Só mostra se der ruim (aí é útil pro usuário)
+      const out =
+        name === "login" ? "loginOut" :
+        name === "register" ? "registerOut" :
+        name === "forgot" ? "forgotOut" :
+        name === "reset" ? "resetOut" : null;
+
+      if (out) setOut(out, { aviso: "API indisponível no momento. Verifique o backend/porta 8000." }, "err");
+    }
+  };
+
+  window.addEventListener("hashchange", applyRoute);
+  applyRoute();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initApiBase();
+  wire();
+  if (!window.location.hash) window.location.hash = "#/login";
+});
