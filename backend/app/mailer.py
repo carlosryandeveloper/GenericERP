@@ -1,55 +1,44 @@
-from __future__ import annotations
-
 import os
 import smtplib
 from email.message import EmailMessage
 
 
-def send_email(to_email: str, subject: str, body: str) -> bool:
+def send_email(to_email: str, subject: str, text: str) -> bool:
     """
-    Envio SMTP.
-    Configure ENV:
-      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
-      SMTP_FROM (opcional)
-      SMTP_TLS=true/false, SMTP_SSL=true/false
-    Sem SMTP_HOST -> modo DEV: imprime no console.
+    ENV esperadas (opcionais):
+      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+      SMTP_TLS=true/false  (default true)
+    Se SMTP_HOST não existir -> imprime no console e retorna True.
     """
-    host = (os.getenv("SMTP_HOST") or "").strip()
+    host = os.getenv("SMTP_HOST", "").strip()
     if not host:
-        print("\n[MAILER DEV] SMTP_HOST não definido. Simulando envio.")
-        print("[MAILER DEV] Para:", to_email)
-        print("[MAILER DEV] Assunto:", subject)
-        print("[MAILER DEV] Corpo:\n" + body + "\n")
-        return False
+        print("\n--- EMAIL (DEV) ---")
+        print("TO:", to_email)
+        print("SUBJECT:", subject)
+        print(text)
+        print("--- /EMAIL (DEV) ---\n")
+        return True
 
-    port = int(os.getenv("SMTP_PORT") or "587")
-    user = (os.getenv("SMTP_USER") or "").strip()
-    password = (os.getenv("SMTP_PASS") or "").strip()
-    from_email = (os.getenv("SMTP_FROM") or user or "no-reply@genericerp.local").strip()
-
-    use_tls = (os.getenv("SMTP_TLS") or "true").strip().lower() in ("1", "true", "yes", "y")
-    use_ssl = (os.getenv("SMTP_SSL") or "false").strip().lower() in ("1", "true", "yes", "y")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    user = os.getenv("SMTP_USER", "").strip()
+    password = os.getenv("SMTP_PASS", "").strip()
+    from_email = os.getenv("SMTP_FROM", user or "no-reply@genericerp.local")
+    use_tls = os.getenv("SMTP_TLS", "true").lower() != "false"
 
     msg = EmailMessage()
     msg["From"] = from_email
     msg["To"] = to_email
     msg["Subject"] = subject
-    msg.set_content(body)
+    msg.set_content(text)
 
     try:
-        if use_ssl:
-            server = smtplib.SMTP_SSL(host, port, timeout=20)
-        else:
-            server = smtplib.SMTP(host, port, timeout=20)
-
-        with server:
-            if use_tls and not use_ssl:
+        with smtplib.SMTP(host, port, timeout=20) as server:
+            if use_tls:
                 server.starttls()
             if user and password:
                 server.login(user, password)
             server.send_message(msg)
-
         return True
     except Exception as e:
-        print("[MAILER] Falha ao enviar e-mail:", repr(e))
+        print("Erro ao enviar e-mail:", e)
         return False
