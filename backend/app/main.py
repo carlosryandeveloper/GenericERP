@@ -1,6 +1,4 @@
-cat > backend/app/main.py <<'PY'
 from __future__ import annotations
-
 from datetime import date, datetime, time, timedelta
 
 from fastapi import FastAPI, Depends, HTTPException
