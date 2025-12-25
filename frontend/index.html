@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR" translate="no">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GenericERP</title>
-  <link rel="stylesheet" href="./style.css" />
+  <meta name="google" content="notranslate">
+  <title>GenericERP • v0.4</title>
+  <link rel="stylesheet" href="./estilo.css" />
   <script defer src="./app.js"></script>
 </head>
 <body>
@@ -14,24 +15,27 @@
         <div class="logo">GE</div>
         <div class="brandTxt">
           <div class="brandName">GenericERP</div>
-          <div class="brandSub">v0.3</div>
+          <div class="brandSub">v0.4</div>
         </div>
       </div>
 
       <nav class="nav">
-        <a class="navLink" href="#/products" data-route="products" data-protected="1">Produtos</a>
-        <a class="navLink" href="#/movements" data-route="movements" data-protected="1">Movimentações</a>
-        <a class="navLink" href="#/balance" data-route="balance" data-protected="1">Saldo</a>
-        <a class="navLink" href="#/statement" data-route="statement" data-protected="1">Extrato</a>
-        <a class="navLink" href="#/login" data-route="login">Sair</a>
+        <a class="navLink" href="#/products" data-route="products">Produtos</a>
+        <a class="navLink" href="#/categories" data-route="categories">Categorias</a>
+        <a class="navLink" href="#/quotes" data-route="quotes">Orçamentos</a>
+        <a class="navLink" href="#/movements" data-route="movements">Movimentações</a>
+        <a class="navLink" href="#/balance" data-route="balance">Saldo</a>
+        <a class="navLink" href="#/statement" data-route="statement">Extrato</a>
+        <div class="navSep"></div>
+        <a class="navLink" href="#/logout" data-route="logout">Sair</a>
       </nav>
     </aside>
 
     <main class="main">
       <header class="top">
         <div class="topTitle">
-          <h1 id="pageTitle">Login</h1>
-          <p id="pageDesc">Entre com seu e-mail e senha.</p>
+          <h1 id="pageTitle">GenericERP</h1>
+          <p id="pageDesc">—</p>
         </div>
       </header>
 
@@ -42,16 +46,10 @@
             <h2>Login</h2>
             <p class="muted">Entre com seu e-mail e senha.</p>
           </div>
-
           <div class="cardB">
-            <!-- LOGO AO LADO DOS CAMPOS -->
             <div class="loginSplit">
               <div class="loginBrandPane">
-                <img
-                  src="./assets/genericerp_lockup.png"
-                  class="loginBrandImg"
-                  alt="GenericERP"
-                />
+                <img class="loginBrandImg" src="./assets/genericerp_lockup.png" alt="GenericERP">
                 <div class="loginBrandHint">ERP raiz: simples, auditável e sem “tela demo”.</div>
               </div>
 
@@ -59,27 +57,24 @@
                 <div class="grid3">
                   <div class="field wide">
                     <label>E-mail</label>
-                    <input class="input" id="loginEmail" placeholder="voce@exemplo.com" autocomplete="username" />
+                    <input class="input" id="loginEmail" placeholder="voce@exemplo.com" />
                   </div>
-
                   <div class="field wide">
                     <label>Senha</label>
-                    <input class="input" id="loginPass" type="password" placeholder="mín. 6 caracteres" autocomplete="current-password" />
+                    <input class="input" id="loginPass" type="password" placeholder="mín. 6 caracteres" />
                   </div>
-
                   <div class="field">
                     <label>&nbsp;</label>
                     <button class="btn primary" id="btnLogin">Entrar</button>
                   </div>
                 </div>
 
-                <div class="row wrap" style="margin-top:10px;gap:10px;">
-                  <button class="btn ghost" id="btnGoForgot">Esqueci minha senha</button>
-                  <button class="btn" id="btnGoRegister">Criar conta</button>
-                  <span class="muted" style="margin-left:auto">Token só no reset.</span>
+                <div class="row">
+                  <button class="btn ghost" id="goForgot">Esqueci minha senha</button>
+                  <button class="btn ghost" id="goRegister">Criar conta</button>
                 </div>
 
-                <pre id="loginOut" class="output empty">—</pre>
+                <div class="output notice hidden" id="loginNotice"></div>
               </div>
             </div>
           </div>
@@ -91,30 +86,29 @@
         <div class="card authCard">
           <div class="cardH">
             <h2>Criar conta</h2>
-            <p class="muted">Você recebe e-mail de confirmação. Sem token aqui.</p>
+            <p class="muted">Se o e-mail já existir, você será orientado a redefinir senha.</p>
           </div>
-
           <div class="cardB">
             <div class="grid3">
               <div class="field wide">
                 <label>E-mail</label>
-                <input class="input" id="regEmail" placeholder="voce@exemplo.com" autocomplete="email" />
+                <input class="input" id="regEmail" placeholder="voce@exemplo.com" />
               </div>
               <div class="field wide">
                 <label>Senha</label>
-                <input class="input" id="regPass" type="password" placeholder="mín. 6 caracteres" autocomplete="new-password" />
+                <input class="input" id="regPass" type="password" placeholder="mín. 6 caracteres" />
               </div>
               <div class="field">
                 <label>&nbsp;</label>
-                <button class="btn primary" id="btnRegisterConfirm">Criar conta</button>
+                <button class="btn primary" id="btnRegister">Criar</button>
               </div>
             </div>
 
-            <div class="row wrap" style="margin-top:10px;gap:10px;">
-              <button class="btn ghost" id="btnBackLoginFromRegister">Voltar</button>
+            <div class="row">
+              <button class="btn ghost" id="goLoginFromRegister">Voltar ao login</button>
             </div>
 
-            <pre id="registerOut" class="output empty">—</pre>
+            <div class="output notice hidden" id="regNotice"></div>
           </div>
         </div>
       </section>
@@ -124,26 +118,29 @@
         <div class="card authCard">
           <div class="cardH">
             <h2>Esqueci minha senha</h2>
-            <p class="muted">Enviaremos um token de <b>6 números</b> para o e-mail.</p>
+            <p class="muted">Você receberá um código de 6 dígitos por e-mail.</p>
           </div>
-
           <div class="cardB">
             <div class="grid3">
               <div class="field wide">
                 <label>E-mail</label>
-                <input class="input" id="fpEmail" placeholder="voce@exemplo.com" autocomplete="email" />
+                <input class="input" id="fpEmail" placeholder="voce@exemplo.com" />
               </div>
               <div class="field">
                 <label>&nbsp;</label>
-                <button class="btn primary" id="btnForgotSend">Enviar token</button>
+                <button class="btn primary" id="btnSendCode">Enviar código</button>
               </div>
               <div class="field">
                 <label>&nbsp;</label>
-                <button class="btn ghost" id="btnBackLoginFromForgot">Voltar</button>
+                <button class="btn ghost" id="goReset">Já tenho o código</button>
               </div>
             </div>
 
-            <pre id="forgotOut" class="output empty">—</pre>
+            <div class="row">
+              <button class="btn ghost" id="goLoginFromForgot">Voltar ao login</button>
+            </div>
+
+            <div class="output notice hidden" id="fpNotice"></div>
           </div>
         </div>
       </section>
@@ -153,34 +150,69 @@
         <div class="card authCard">
           <div class="cardH">
             <h2>Redefinir senha</h2>
-            <p class="muted">Informe o token de 6 números e defina a nova senha.</p>
+            <p class="muted">Informe e-mail, código (6 dígitos) e a nova senha.</p>
           </div>
-
           <div class="cardB">
             <div class="grid3">
               <div class="field wide">
                 <label>E-mail</label>
-                <input class="input" id="rpEmail" placeholder="voce@exemplo.com" autocomplete="email" />
+                <input class="input" id="rpEmail" placeholder="voce@exemplo.com" />
               </div>
               <div class="field">
-                <label>Token</label>
-                <input class="input" id="rpToken" placeholder="000000" maxlength="6" inputmode="numeric" />
+                <label>Código</label>
+                <input class="input" id="rpCode" placeholder="000000" />
               </div>
-              <div class="field wide">
+              <div class="field">
                 <label>Nova senha</label>
-                <input class="input" id="rpNewPass" type="password" placeholder="mín. 6 caracteres" autocomplete="new-password" />
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn primary" id="btnResetPass">Alterar senha</button>
-              </div>
-              <div class="field">
-                <label>&nbsp;</label>
-                <button class="btn ghost" id="btnBackLoginFromReset">Voltar</button>
+                <input class="input" id="rpPass" type="password" placeholder="mín. 6 caracteres" />
               </div>
             </div>
 
-            <pre id="resetOut" class="output empty">—</pre>
+            <div class="row">
+              <button class="btn primary" id="btnResetPass">Atualizar senha</button>
+              <button class="btn ghost" id="goLoginFromReset">Voltar ao login</button>
+            </div>
+
+            <div class="output notice hidden" id="rpNotice"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CATEGORIES -->
+      <section class="page" data-page="categories">
+        <div class="card">
+          <div class="cardH split">
+            <div>
+              <h2>Categorias</h2>
+              <p class="muted">Ative desconto automático por categoria (pré-preenche no orçamento).</p>
+            </div>
+            <button class="btn primary" id="btnCreateCategory">Criar categoria</button>
+          </div>
+          <div class="cardB">
+            <div class="grid4">
+              <div class="field wide">
+                <label>Nome</label>
+                <input class="input" id="cName" placeholder="Ex: Papelaria" />
+              </div>
+              <div class="field">
+                <label>Desconto automático?</label>
+                <select id="cAuto">
+                  <option value="false">Não</option>
+                  <option value="true">Sim</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>% padrão</label>
+                <input class="input" id="cDisc" placeholder="Ex: 10" />
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button class="btn ghost" id="btnLoadCategories">Carregar</button>
+              </div>
+            </div>
+
+            <div class="output notice hidden" id="catNotice"></div>
+            <div id="catTable"></div>
           </div>
         </div>
       </section>
@@ -191,13 +223,12 @@
           <div class="cardH split">
             <div>
               <h2>Produtos</h2>
-              <p class="muted">SKU é único por usuário.</p>
+              <p class="muted">Agora com preço, unidade, categoria e fator (ex: CX=12).</p>
             </div>
             <button class="btn primary" id="btnCreateProduct">Criar produto</button>
           </div>
-
           <div class="cardB">
-            <div class="grid3">
+            <div class="grid4">
               <div class="field">
                 <label>SKU</label>
                 <input class="input" id="pSku" placeholder="P-001" />
@@ -208,54 +239,158 @@
               </div>
               <div class="field">
                 <label>Unidade</label>
-                <input class="input" id="pUnit" placeholder="UN" />
+                <select id="pUnit">
+                  <option value="UN">UN</option>
+                  <option value="CX">CX</option>
+                  <option value="KG">KG</option>
+                  <option value="L">L</option>
+                  <option value="M">M</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Preço</label>
+                <input class="input" id="pPrice" placeholder="Ex: 12.50" />
               </div>
             </div>
 
-            <pre id="productOut" class="output empty">—</pre>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Lista rápida</h2>
-              <p class="muted">ID, Nome, Unidade</p>
+            <div class="grid3" style="margin-top:10px">
+              <div class="field wide">
+                <label>Categoria</label>
+                <select id="pCategory"></select>
+              </div>
+              <div class="field">
+                <label>Fator (CX/Pack)</label>
+                <input class="input" id="pPack" placeholder="Ex: 12" />
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button class="btn ghost" id="btnLoadProducts">Carregar tabela</button>
+              </div>
             </div>
-            <button class="btn ghost" id="btnLoadProductsMin">Carregar</button>
-          </div>
-          <div class="cardB">
-            <pre id="productsMinMsg" class="output empty">—</pre>
-            <div id="productsMinTable"></div>
-          </div>
-        </div>
 
-        <div class="card">
-          <div class="cardH split">
-            <div>
-              <h2>Tabela completa</h2>
-              <p class="muted">ID, SKU, Nome, Unidade</p>
-            </div>
-            <button class="btn ghost" id="btnLoadProductsTable">Carregar</button>
-          </div>
-          <div class="cardB">
-            <pre id="productsTableMsg" class="output empty">—</pre>
-            <div id="productsTable"></div>
+            <div class="output notice hidden" id="prodNotice"></div>
+            <div id="prodTable"></div>
           </div>
         </div>
       </section>
 
-      <!-- MOVEMENTS -->
+      <!-- QUOTES -->
+      <section class="page" data-page="quotes">
+        <div class="card">
+          <div class="cardH split">
+            <div>
+              <h2>Orçamentos</h2>
+              <p class="muted">Itens puxam preço do produto e desconto padrão da categoria (editável).</p>
+            </div>
+            <button class="btn primary" id="btnCreateQuote">Novo orçamento</button>
+          </div>
+
+          <div class="cardB">
+            <div class="grid4">
+              <div class="field wide">
+                <label>Cliente</label>
+                <input class="input" id="qCustomer" placeholder="Nome do cliente" />
+              </div>
+              <div class="field wide">
+                <label>E-mail (opcional)</label>
+                <input class="input" id="qEmail" placeholder="cliente@exemplo.com" />
+              </div>
+              <div class="field">
+                <label>Validade (dias)</label>
+                <input class="input" id="qValid" placeholder="7" />
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button class="btn ghost" id="btnLoadQuotes">Carregar</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field wide" style="flex:1">
+                <label>Observações</label>
+                <input class="input" id="qNotes" placeholder="Condições, prazos, etc." />
+              </div>
+            </div>
+
+            <div class="output notice hidden" id="quoteNotice"></div>
+
+            <div class="card" style="margin-top:14px">
+              <div class="cardH split">
+                <div>
+                  <h2>Itens do orçamento</h2>
+                  <p class="muted">Orçamento atual: <span class="mono" id="currentQuote">—</span></p>
+                </div>
+                <div class="row" style="margin:0">
+                  <select id="qStatus">
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="SENT">SENT</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="REJECTED">REJECTED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                  </select>
+                  <button class="btn ghost" id="btnSetStatus">Atualizar status</button>
+                </div>
+              </div>
+
+              <div class="cardB">
+                <div class="grid4">
+                  <div class="field wide">
+                    <label>Produto</label>
+                    <select id="qiProduct"></select>
+                  </div>
+                  <div class="field">
+                    <label>Qtd</label>
+                    <input class="input" id="qiQty" placeholder="1" />
+                  </div>
+                  <div class="field">
+                    <label>Preço</label>
+                    <input class="input" id="qiPrice" placeholder="auto" />
+                  </div>
+                  <div class="field">
+                    <label>Desc. %</label>
+                    <input class="input" id="qiDisc" placeholder="auto" />
+                  </div>
+                </div>
+
+                <div class="row">
+                  <button class="btn primary" id="btnAddItem">Adicionar item</button>
+                </div>
+
+                <div id="quoteItemsTable"></div>
+                <div class="row" style="justify-content:flex-end;margin-top:10px">
+                  <div class="pill" style="display:flex !important">
+                    <span class="txt">
+                      Total: <b id="qTotal">0.00</b>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:14px">
+              <div class="cardH">
+                <h2>Lista de orçamentos</h2>
+                <p class="muted">Clique em um orçamento para carregar os itens.</p>
+              </div>
+              <div class="cardB">
+                <div id="quotesTable"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- MOVEMENTS/BALANCE/STATEMENT (mantém seus fluxos) -->
       <section class="page" data-page="movements">
         <div class="card">
           <div class="cardH split">
             <div>
               <h2>Movimentações</h2>
-              <p class="muted">OUT não deixa saldo negativo. ADJUST exige observação.</p>
+              <p class="muted">IN / OUT / ADJUST</p>
             </div>
             <button class="btn primary" id="btnCreateMovement">Lançar</button>
           </div>
-
           <div class="cardB">
             <div class="grid4">
               <div class="field">
@@ -276,43 +411,39 @@
               </div>
               <div class="field wide">
                 <label>Observação</label>
-                <input class="input" id="mNote" placeholder="Obrigatória para ADJUST" />
+                <input class="input" id="mNote" placeholder="Opcional" />
               </div>
             </div>
 
-            <pre id="movementOut" class="output empty">—</pre>
+            <div class="output notice hidden" id="mvNotice"></div>
           </div>
         </div>
       </section>
 
-      <!-- BALANCE -->
       <section class="page" data-page="balance">
         <div class="card">
           <div class="cardH split">
             <div>
               <h2>Saldo</h2>
-              <p class="muted">Saldo por produto (por usuário).</p>
+              <p class="muted">Saldo por produto.</p>
             </div>
             <button class="btn ghost" id="btnLoadBalance">Carregar</button>
           </div>
-
           <div class="cardB">
-            <pre id="balanceOut" class="output empty">—</pre>
+            <div id="balanceTable"></div>
           </div>
         </div>
       </section>
 
-      <!-- STATEMENT -->
       <section class="page" data-page="statement">
         <div class="card">
           <div class="cardH split">
             <div>
               <h2>Extrato</h2>
-              <p class="muted">Histórico com saldo acumulado.</p>
+              <p class="muted">Saldo acumulado por linha.</p>
             </div>
             <button class="btn ghost" id="btnLoadStatement">Carregar</button>
           </div>
-
           <div class="cardB">
             <div class="grid3">
               <div class="field">
@@ -328,14 +459,13 @@
                 <input class="input" id="sTo" placeholder="YYYY-MM-DD" />
               </div>
             </div>
-
-            <pre id="statementOut" class="output empty">—</pre>
+            <div id="statementTable"></div>
           </div>
         </div>
       </section>
 
       <footer class="footer">
-        GenericERP • v0.3 • auth + reset 6 dígitos
+        GenericERP • v0.4 • categorias + produtos vendáveis + orçamentos
       </footer>
     </main>
   </div>
