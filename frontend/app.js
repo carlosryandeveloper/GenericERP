@@ -27,6 +27,7 @@ let categoriesCache = [];
 
 function guessApiBase() {
   const raw = window.location.origin;
+  // Codespaces: https://xxxx-5173.app.github.dev -> https://xxxx-8000.app.github.dev
   if (raw.includes(".app.github.dev")) return raw.replace(/-\d+\./, "-8000.");
   return FALLBACK_LOCAL;
 }
@@ -34,13 +35,20 @@ function guessApiBase() {
 function normalizeBase(url) {
   let u = (url || "").trim();
   if (!u) return "";
-  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+
+  // Se não tem protocolo, usa o mesmo protocolo da página (evita forçar https)
+  if (!/^https?:\/\//i.test(u)) {
+    const proto = window.location.protocol || "http:";
+    u = proto + "//" + u;
+  }
+
+  // remove barras finais
   return u.replace(/\/+$/, "");
 }
 
 function apiBase() {
   const stored = normalizeBase(localStorage.getItem(LS_API_BASE) || "");
-  return stored || guessApiBase();
+  return stored || normalizeBase(guessApiBase());
 }
 
 function getToken() {
@@ -292,13 +300,10 @@ async function onRegister() {
     };
     const data = await fetchJson("/auth/register", { method: "POST", body: JSON.stringify(payload) });
     showNotice("regNotice", "ok", data?.message || "Conta criada.");
-    // volta pro login
     setTimeout(() => (window.location.hash = "#/login"), 700);
   } catch (e) {
     showNotice("regNotice", "err", e.message);
-    // dica direta:
     if ((e.message || "").includes("já cadastrado")) {
-      // encaminha pro forgot
       setTimeout(() => (window.location.hash = "#/forgot"), 900);
     }
   }
@@ -468,10 +473,8 @@ function syncAutoFillFromProduct() {
   const p = productsCache.find((x) => x.id === pid);
   if (!p) return;
 
-  // preço default do produto
   if (!byId("qiPrice").value) byId("qiPrice").value = String(p.price ?? "");
 
-  // desconto default da categoria (se auto)
   const d = p.auto_discount_enabled ? (p.default_discount_percent ?? 0) : 0;
   if (!byId("qiDisc").value) byId("qiDisc").value = String(d);
 }
@@ -581,14 +584,12 @@ async function onAddItem() {
 
     if (!Number.isFinite(payload.quantity) || payload.quantity <= 0) throw new Error("Qtd inválida.");
 
-    // se o usuário deixar vazio, o backend preenche. Aqui só mandamos se for número:
     if (!Number.isFinite(payload.unit_price)) delete payload.unit_price;
     if (!Number.isFinite(payload.discount_percent)) delete payload.discount_percent;
 
     await fetchJson(`/quotes/${currentQuoteId}/items`, { method: "POST", body: JSON.stringify(payload) });
     showNotice("quoteNotice", "ok", "Item adicionado.");
 
-    // limpa só quantidade, deixa preço/desc (pra agilizar)
     byId("qiQty").value = "";
 
     await loadQuoteDetails();
@@ -697,13 +698,11 @@ async function onLoadStatement() {
    BOOT
    ======================= */
 async function onEnterRoute(name) {
-  // proteção: se não tiver token, joga pro login (exceto rotas de auth)
   if (!isAuthRoute(name) && !getToken()) {
     window.location.hash = "#/login";
     return;
   }
 
-  // carregamentos por tela
   if (name === "categories") {
     await loadCategories();
   }
@@ -723,7 +722,6 @@ async function onEnterRoute(name) {
 }
 
 function wire() {
-  // auth nav
   byId("goForgot")?.addEventListener("click", () => (window.location.hash = "#/forgot"));
   byId("goRegister")?.addEventListener("click", () => (window.location.hash = "#/register"));
   byId("goReset")?.addEventListener("click", () => (window.location.hash = "#/reset"));
@@ -736,15 +734,12 @@ function wire() {
   byId("btnSendCode")?.addEventListener("click", onSendCode);
   byId("btnResetPass")?.addEventListener("click", onResetPassword);
 
-  // categories
   byId("btnCreateCategory")?.addEventListener("click", onCreateCategory);
   byId("btnLoadCategories")?.addEventListener("click", () => loadCategories().catch(() => {}));
 
-  // products
   byId("btnCreateProduct")?.addEventListener("click", onCreateProduct);
   byId("btnLoadProducts")?.addEventListener("click", () => loadProductsTable().catch(() => {}));
 
-  // quotes
   byId("btnCreateQuote")?.addEventListener("click", onCreateQuote);
   byId("btnLoadQuotes")?.addEventListener("click", () => loadQuotes().catch(() => {}));
   byId("btnAddItem")?.addEventListener("click", onAddItem);
@@ -755,7 +750,6 @@ function wire() {
     syncAutoFillFromProduct();
   });
 
-  // stock
   byId("btnCreateMovement")?.addEventListener("click", onCreateMovement);
   byId("btnLoadBalance")?.addEventListener("click", () => onLoadBalance().catch(() => {}));
   byId("btnLoadStatement")?.addEventListener("click", () => onLoadStatement().catch(() => {}));
@@ -771,9 +765,19 @@ function wire() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // fixa api base automaticamente (sem tela de config)
-  if (!localStorage.getItem(LS_API_BASE)) {
-    localStorage.setItem(LS_API_BASE, normalizeBase(guessApiBase()));
+  const guessed = normalizeBase(guessApiBase());
+  const storedRaw = (localStorage.getItem(LS_API_BASE) || "").trim();
+
+  const isCodespaces = window.location.origin.includes(".app.github.dev");
+  const storedIsLocalhost =
+    storedRaw.includes("localhost") || storedRaw.includes("127.0.0.1") || storedRaw.includes("0.0.0.0");
+
+  // Se não tem stored OU se está em Codespaces e stored aponta pra localhost, corrige automaticamente
+  if (!storedRaw || (isCodespaces && storedIsLocalhost)) {
+    localStorage.setItem(LS_API_BASE, guessed);
+  } else {
+    // normaliza o que já existe (ex.: remove barras finais)
+    localStorage.setItem(LS_API_BASE, normalizeBase(storedRaw));
   }
 
   wire();
