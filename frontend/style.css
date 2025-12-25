@@ -30,26 +30,48 @@ body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 
-  /* ===== FUNDO “ERP premium” (sem banding/linha reta) ===== */
+  /* ===== FUNDO SUAVE (sem faixa horizontal / sem “degrau”) ===== */
   background:
-    radial-gradient(900px 520px at 18% 12%,
-      rgba(16,185,129,.22) 0%,
-      rgba(16,185,129,.14) 32%,
-      rgba(16,185,129,.08) 52%,
-      rgba(16,185,129,.04) 62%,
+    radial-gradient(980px 560px at 18% 14%,
+      rgba(16,185,129,.18) 0%,
+      rgba(16,185,129,.10) 34%,
+      rgba(16,185,129,.06) 52%,
       transparent 76%),
 
-    radial-gradient(900px 520px at 78% 22%,
-      rgba(245,158,11,.24) 0%,
-      rgba(245,158,11,.14) 34%,
-      rgba(245,158,11,.08) 54%,
-      rgba(245,158,11,.04) 64%,
+    radial-gradient(980px 560px at 78% 20%,
+      rgba(245,158,11,.18) 0%,
+      rgba(245,158,11,.10) 36%,
+      rgba(245,158,11,.06) 54%,
       transparent 78%),
 
-    linear-gradient(180deg, rgba(0,0,0,.22), transparent 42%),
+    /* sombra do topo SEM corte duro */
+    linear-gradient(180deg,
+      rgba(0,0,0,.28) 0%,
+      rgba(0,0,0,.18) 22%,
+      rgba(0,0,0,.10) 42%,
+      rgba(0,0,0,.04) 62%,
+      transparent 82%),
+
     var(--bg);
 
+  background-attachment: fixed;
   color:var(--text);
+}
+
+/* Quebra banding/linhas de gradiente (bem sutil) */
+body::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg,
+      rgba(255,255,255,.03) 0px,
+      rgba(255,255,255,.03) 1px,
+      transparent 2px,
+      transparent 6px);
+  opacity: .06;
+  mix-blend-mode: overlay;
 }
 
 .app{
@@ -60,7 +82,7 @@ body{
 
 /* ===== SIDEBAR ===== */
 .sidebar{
-  /* tira a borda “dura” e usa linha interna (evita costura/artefato) */
+  /* evita “costura”/linha estranha */
   border-right: none;
   box-shadow: inset -1px 0 0 rgba(255,255,255,.10);
 
@@ -102,7 +124,7 @@ body{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.04);
   color: var(--text);
-  transition: background .15s ease, border-color .15s ease, transform .08s ease;
+  transition: background .15s ease, border-color .15s ease, transform .08s ease, box-shadow .15s ease;
 }
 .navLink:hover{
   background: rgba(255,255,255,.06);
@@ -166,10 +188,11 @@ body{
 .topTitle h1{margin:0; font-size: 22px}
 .topTitle p{margin:6px 0 0; color: var(--muted); font-size: 13px}
 
-/* ===== CARDS ===== */
+/* ===== CARDS (menos vazamento do fundo) ===== */
 .card{
   border: 1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  background: linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.18));
+  backdrop-filter: blur(10px);
   border-radius: var(--r);
   box-shadow: var(--shadow);
   margin: 14px 0;
