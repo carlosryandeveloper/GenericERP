@@ -1,33 +1,46 @@
 :root{
   color-scheme: dark;
-  --bg:#0a0f1a;
+
+  /* ===== PALETA GenericERP (verde/laranja) ===== */
+  --bg:#07110f; /* fundo bem escuro, verde petróleo */
   --panel: rgba(255,255,255,.06);
-  --panel2: rgba(255,255,255,.08);
+  --panel2: rgba(255,255,255,.085);
   --line: rgba(255,255,255,.10);
 
   --text: rgba(255,255,255,.92);
   --muted: rgba(255,255,255,.68);
 
-  --accent:#7c3aed;
-  --accent2:#22d3ee;
+  /* cores da marca */
+  --accent:#f59e0b;   /* laranja */
+  --accent2:#10b981;  /* verde */
 
+  /* estados */
   --ok:#22c55e;
   --warn:#fbbf24;
   --err:#ef4444;
 
   --r: 16px;
   --shadow: 0 18px 55px rgba(0,0,0,.35);
+
+  /* brilho controlado (evita “mancha”) */
+  --glowA: rgba(245,158,11,.20);
+  --glowB: rgba(16,185,129,.18);
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
+
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+  /* ===== FUNDO “ERP premium” (sem roxo/ciano) ===== */
   background:
-    radial-gradient(900px 500px at 20% 10%, rgba(124,58,237,.28), transparent 55%),
-    radial-gradient(900px 500px at 80% 30%, rgba(34,211,238,.18), transparent 55%),
+    radial-gradient(900px 520px at 18% 12%, var(--glowB), transparent 58%),
+    radial-gradient(900px 520px at 78% 22%, var(--glowA), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.18), transparent 35%),
     var(--bg);
+
   color:var(--text);
 }
 
@@ -37,13 +50,15 @@ body{
   min-height:100vh;
 }
 
+/* ===== SIDEBAR ===== */
 .sidebar{
   border-right: 1px solid var(--line);
   padding: 18px 14px;
   position: sticky;
   top:0;
   height:100vh;
-  background: rgba(10,15,26,.82);
+
+  background: rgba(7,17,15,.82);
   backdrop-filter: blur(10px);
 }
 
@@ -53,18 +68,23 @@ body{
   align-items:center;
   margin-bottom: 16px;
 }
+
 .logo{
   width:40px;height:40px;border-radius:14px;
   display:grid;place-items:center;
-  background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(34,211,238,.55));
+
+  /* logo chip verde/laranja */
+  background: linear-gradient(135deg, rgba(245,158,11,.92), rgba(16,185,129,.55));
   border: 1px solid rgba(255,255,255,.12);
   box-shadow: var(--shadow);
   font-weight: 800;
 }
+
 .brandName{font-weight:800; letter-spacing:.2px}
 .brandSub{color:var(--muted); font-size:12px}
 
 .nav{display:flex; flex-direction:column; gap:8px; margin-top:8px}
+
 .navLink{
   text-decoration:none;
   padding: 10px 10px;
@@ -72,13 +92,20 @@ body{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.04);
   color: var(--text);
+  transition: background .15s ease, border-color .15s ease, transform .08s ease;
 }
-.navLink:hover{background: rgba(255,255,255,.06)}
+.navLink:hover{
+  background: rgba(255,255,255,.06);
+}
+.navLink:active{ transform: translateY(1px); }
+
 .navLink.active{
-  border-color: rgba(124,58,237,.55);
-  background: linear-gradient(135deg, rgba(124,58,237,.40), rgba(124,58,237,.14));
+  border-color: rgba(245,158,11,.55);
+  background: linear-gradient(135deg, rgba(245,158,11,.20), rgba(16,185,129,.10));
+  box-shadow: 0 10px 30px rgba(0,0,0,.22);
 }
 
+/* Rodapé / status – escondido como você pediu */
 .sideFoot{
   position:absolute;
   left:14px;
@@ -111,6 +138,10 @@ body{
   font-size: 12.5px;
 }
 
+/* Produção: não mostra */
+.pill, .sideFoot{ display:none !important; }
+
+/* ===== MAIN ===== */
 .main{
   padding: 20px 22px 40px;
 }
@@ -125,9 +156,11 @@ body{
 .topTitle h1{margin:0; font-size: 22px}
 .topTitle p{margin:6px 0 0; color: var(--muted); font-size: 13px}
 
+/* ===== CARDS ===== */
 .card{
   border: 1px solid rgba(255,255,255,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
   border-radius: var(--r);
   box-shadow: var(--shadow);
   margin: 14px 0;
@@ -151,6 +184,7 @@ body{
 
 label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
 
+/* ===== INPUTS ===== */
 .input, select{
   width:100%;
   padding: 10px 12px;
@@ -159,11 +193,13 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   background: rgba(0,0,0,.22);
   color: var(--text);
   outline:none;
+  transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
 }
 .input:focus, select:focus{
-  border-color: rgba(124,58,237,.55);
-  box-shadow: 0 0 0 3px rgba(124,58,237,.14);
+  border-color: rgba(245,158,11,.55);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.16);
 }
+.input::placeholder{ color: rgba(255,255,255,.45); }
 
 .grid3{
   display:grid;
@@ -177,9 +213,11 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   gap:12px;
   align-items:end;
 }
+
 .field{min-width: 180px}
 .field.wide{min-width: 260px}
 
+/* ===== BOTÕES ===== */
 .btn{
   cursor:pointer;
   padding: 10px 12px;
@@ -187,16 +225,25 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   border: 1px solid rgba(255,255,255,.14);
   background: rgba(255,255,255,.06);
   color: var(--text);
+  transition: background .15s ease, transform .08s ease, border-color .15s ease;
 }
-.btn:hover{background: rgba(255,255,255,.09)}
+.btn:hover{ background: rgba(255,255,255,.09); }
+.btn:active{ transform: translateY(1px); }
+
 .btn.primary{
-  background: linear-gradient(135deg, rgba(124,58,237,.92), rgba(124,58,237,.55));
-  border-color: rgba(124,58,237,.55);
+  background: linear-gradient(135deg, rgba(245,158,11,.95), rgba(16,185,129,.45));
+  border-color: rgba(245,158,11,.55);
+  box-shadow: 0 12px 35px rgba(0,0,0,.22);
 }
+.btn.primary:hover{
+  background: linear-gradient(135deg, rgba(245,158,11,1), rgba(16,185,129,.55));
+}
+
 .btn.ghost{
   background: rgba(255,255,255,.04);
 }
 
+/* ===== OUTPUT / NOTICES ===== */
 .output{
   margin-top: 12px;
   padding: 12px;
@@ -205,15 +252,18 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   background: rgba(0,0,0,.22);
   overflow:auto;
   max-height: 280px;
-  white-space: pre;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 12.5px;
 }
-.output.empty{ color: rgba(255,255,255,.45); font-style: italic; }
+.output.empty{ opacity: .75; color: rgba(255,255,255,.55); font-style: italic; }
 .output.ok{ border-color: rgba(34,197,94,.35); }
 .output.err{ border-color: rgba(239,68,68,.35); }
 
-/* AVISO discreto (menos “log”, mais UI) */
+/* AVISO discreto */
 .output.notice{
   max-height: none;
   white-space: normal;
@@ -272,8 +322,8 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   outline:none;
 }
 .table-toolbar input:focus{
-  border-color: rgba(124,58,237,.55);
-  box-shadow: 0 0 0 3px rgba(124,58,237,.14);
+  border-color: rgba(245,158,11,.55);
+  box-shadow: 0 0 0 3px rgba(245,158,11,.16);
 }
 
 .table-wrap{
@@ -299,13 +349,13 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   font-size: 12px;
   color: rgba(255,255,255,.78);
   padding: 12px 12px;
-  background: rgba(10,15,26,.92);
+  background: rgba(7,17,15,.92);
   border-bottom: 1px solid rgba(255,255,255,.10);
   cursor: pointer;
   user-select:none;
 }
 .erp-table thead th:hover{
-  background: rgba(124,58,237,.14);
+  background: rgba(245,158,11,.10);
 }
 
 .erp-table tbody td{
@@ -320,7 +370,7 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   background: rgba(255,255,255,.02);
 }
 .erp-table tbody tr:hover{
-  background: rgba(34,211,238,.06);
+  background: rgba(16,185,129,.07);
 }
 
 .erp-table td.num{
@@ -335,16 +385,9 @@ label{display:block; font-size: 12px; color: var(--muted); margin: 0 0 6px}
   text-align:center;
 }
 
-@media (max-width: 980px){
-  .app{grid-template-columns: 1fr}
-  .sidebar{position: relative; height:auto}
-  .sideFoot{position:relative; left:auto; right:auto; bottom:auto}
-  .grid3, .grid4{grid-template-columns: 1fr}
-  .erp-table{min-width: 620px;}
-}
-
-/* ===== v0.3 UI polish (FIX) ===== */
-
+/* =========================================================
+   AUTH MODE
+   ========================================================= */
 body.auth-mode .app{
   grid-template-columns: 1fr;
 }
@@ -372,6 +415,7 @@ body.auth-mode .authCard{
   margin: 0 auto;
 }
 
+/* ESSENCIAL: evita inputs vazando por min-width no auth */
 body.auth-mode .authCard .field,
 body.auth-mode .authCard .field.wide{
   min-width: 0;
@@ -379,22 +423,6 @@ body.auth-mode .authCard .field.wide{
 
 body.auth-mode .authCard .grid3{
   grid-template-columns: 1fr 1fr 140px;
-}
-
-@media (max-width: 900px){
-  body.auth-mode .authCard .grid3{
-    grid-template-columns: 1fr;
-  }
-}
-
-.output{
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.output.empty{ opacity: .75; }
-
-.pill, .sideFoot{
-  display:none !important;
 }
 
 /* ===== NOVO: Logo ao lado dos campos do Login ===== */
@@ -443,7 +471,20 @@ body.auth-mode .loginSplit .field.wide{
   min-width: 0;
 }
 
+/* =========================================================
+   RESPONSIVO
+   ========================================================= */
+@media (max-width: 980px){
+  .app{grid-template-columns: 1fr}
+  .sidebar{position: relative; height:auto}
+  .sideFoot{position:relative; left:auto; right:auto; bottom:auto}
+  .grid3, .grid4{grid-template-columns: 1fr}
+  .erp-table{min-width: 620px;}
+}
+
 @media (max-width: 900px){
+  body.auth-mode .authCard .grid3{ grid-template-columns: 1fr; }
+
   .loginSplit{
     grid-template-columns: 1fr;
   }
