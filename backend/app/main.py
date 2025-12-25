@@ -3,8 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 
 from .db import engine
-
-# IMPORTA MODELS pra SQLModel.metadata enxergar todas as tabelas
 from . import models  # noqa: F401
 
 from .auth_routes import router as auth_router
@@ -12,18 +10,21 @@ from .catalog_routes import router as catalog_router
 from .quotes_routes import router as quotes_router
 from .stock_routes import router as stock_router
 
-
 app = FastAPI(title="GenericERP API", version="0.4.0")
 
-# =========================
-# CORS (DEV) - libera geral
-# =========================
+# CORS: libera qualquer origin do Codespaces (porta 5173) + local
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # dev: libera qualquer origem
-    allow_credentials=False,   # IMPORTANTÍSSIMO: não pode "*" com credentials=True
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ],
+    allow_origin_regex=r"^https://.*-5173\.app\.github\.dev$",
+    allow_credentials=False,  # <- Bearer token no header, não cookie
     allow_methods=["*"],
-    allow_headers=["*"],       # Content-Type, Authorization, etc.
+    allow_headers=["*"],
 )
 
 @app.on_event("startup")
